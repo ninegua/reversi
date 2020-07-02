@@ -1,0 +1,43 @@
+{
+  "canisters": {
+    "reversi": {
+      "main": "src/reversi/main.mo",
+      "type": "motoko"
+    },
+    "reversi_assets": {
+      "dependencies": [
+        "reversi"
+      ],
+      "frontend": {
+        "entrypoint": "src/reversi_assets/public/index.js",
+        "output": "canisters/reversi_assets/assets"
+      },
+      "source": [
+        "src/reversi_assets/assets"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "output": "canisters/",
+      "packtool": ""
+    },
+    "start": {
+      "address": "127.0.0.1",
+      "port": 8000
+    }
+  },
+  "dfx": "0.5.10",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000"
+    },
+    "tungsten": {
+      "providers": [
+        "https://gateway.dfinity.systems"
+      ]
+    }
+  },
+  "version": 1
+}

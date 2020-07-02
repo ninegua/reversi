@@ -1,0 +1,15 @@
+{
+  "name": "reversi_assets",
+  "version": "0.1.0",
+  "description": "",
+  "keywords": [],
+  "scripts": {
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "@dfinity/agent": "/home/suede/.cache/dfinity/versions/0.5.10/js-user-library",
+    "terser-webpack-plugin": "2.2.2",
+    "webpack": "4.41.3",
+    "webpack-cli": "3.3.10"
+  }
+}
