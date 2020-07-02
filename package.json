@@ -11,5 +11,11 @@
     "terser-webpack-plugin": "2.2.2",
     "webpack": "4.41.3",
     "webpack-cli": "3.3.10"
+  },
+  "dependencies": {
+    "css-loader": "^3.6.0",
+    "imports-loader": "^1.1.0",
+    "mithril": "^2.0.4",
+    "style-loader": "^1.2.1"
   }
 }

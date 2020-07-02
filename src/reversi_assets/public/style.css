@@ -1,0 +1,4 @@
+body { margin: 30; padding: 0; background: #b7bf76; overflow: hidden; }
+svg { width: 100%; height:inherit; }
+.score { font-family: cursive; font-size: 1.5em; }
+.point { font-size:4em; }
