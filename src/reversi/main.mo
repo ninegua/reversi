@@ -86,6 +86,7 @@ type Games = Buf.Buf<GameState>;
 type StartError = {
   #InvalidOpponentName;
   #PlayerNotFound;
+  #NoSelfGame;
 };
 
 actor {
@@ -233,11 +234,14 @@ actor {
   //
   // It also means if white has left a game (to start another one), black can keep waiting.
   // But if black has left a game (to start another one), the game must be cancelled.
-  public shared(msg) func start_game(opponent_name: Text): async Result.Result<GameView, StartError> {
+  public shared(msg) func start(opponent_name: Text): async Result.Result<GameView, StartError> {
     let player_id = msg.caller;
     switch (lookup_player_by_id(player_id)) {
       case null (#err(#PlayerNotFound));
       case (?player) {
+		if (player.name == opponent_name) {
+          return #err(#NoSelfGame);
+	    };
         // allow empty opponent name
         if (opponent_name == "") {
           switch (lookup_game_by_name(player.name)) {

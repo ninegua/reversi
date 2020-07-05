@@ -4,27 +4,64 @@ body {
   background: #b7bf76;
   overflow: hidden;
 }
+
 div {
   margin: auto;
   font-family: Helvetica, Sans-Serif;
   text-align: center;
 }
+
 svg {
   margin: auto;
-  font: bold 3em Helvetica, Sans-Serif;
   display: block;
 }
-.total_score {
-  font-color: red;
+
+.players {
+  display: flex;
+  margin-top: 10px;
+  color: #060;
 }
+
+.black-player {
+  font: bold 3em Helvetica, Sans-Serif;
+  color: black;
+  text-align: left;
+  flex-grow: 1;
+} 
+
+.white-player {
+  font: bold 3em Helvetica, Sans-Serif;
+  color: white;
+  text-align: right;
+  flex-grow: 1;
+} 
+
+.dots {
+  margin-bottom: 10px;
+}
+
+.board {
+  margin-bottom: 20px;
+}
+
+.dimension {
+  color: #060;
+}
+
+.total_score {
+  color: red;
+}
+
 .score {
   font-size: 3em;
 }
+
 .error {
-  margin-bottom: 10px;
-  color: black;
-  font-style: bold;
+  color: #060;
+  font: bold;
+  margin-bottom: 20px;
 }
+
 .dot {
   stroke: none;
 }
@@ -54,16 +91,20 @@ svg {
   }
 }
 
+.cover {
+  width: 20em;
+}
+
 body,
 .input,
 .button {
-  font: normal 16px;
+  font: bold;
   margin: 10px;
 }
 
 .label {
   display: block;
-  margin: 0 0 5px;
+  margin: 10px;
 }
 
 .input {

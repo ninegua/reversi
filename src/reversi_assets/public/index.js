@@ -24,10 +24,7 @@ const boardLength =
   Math.min(
     document.documentElement.clientWidth,
     document.documentElement.clientHeight
-  ) * 0.75;
-
-// The height of the display area above the board.
-const displayHeight = boardLength / 5;
+  ) * 0.85;
 
 //////////////////////////////////////////////////////////////////////////////
 // Game logic (Copied from Motoko code)
@@ -101,41 +98,19 @@ function Board(player_color, game, onClick, onDismiss) {
   const dimension = game.dimension.toNumber();
   const next = game["next"];
 
-  let display = [
-    m(
-      "text.black",
-      {
-        x: 0,
-        y: displayHeight / 2,
-        "text-anchor": "start",
-        "dominant-baseline": "middle"
-      },
-      black_player
-    ),
-    m(
-      "text.white",
-      {
-        x: boardLength,
-        y: displayHeight / 2,
-        "text-anchor": "end",
-        "dominant-baseline": "middle"
-      },
-      white_player
-    )
-  ];
-
   const dot_start = "white" in next ? boardLength - 90 : 10;
   const dot_color = "white" in next ? "#fff" : "#000";
-
+  let dots = [];
+  let dotsHeight = 20;
   // Only draw dots if result is not out yet
   if (game["result"].length == 0) {
     for (var i = 0; i < 5; i++) {
-      display.push(
+      dots.push(
         m(
           "circle.dot",
           {
             cx: dot_start + i * 20,
-            cy: (displayHeight * 7) / 8,
+            cy: dotsHeight / 2,
             r: 6,
             fill: dot_color
           },
@@ -269,8 +244,13 @@ function Board(player_color, game, onClick, onDismiss) {
     );
   }
   return [
-    m("svg", { width: boardLength, height: displayHeight }, display),
-    m("svg", { width: boardLength, height: boardLength }, cells)
+    m("div.players", { style: { width: boardLength + "px" } }, [
+      m("span.black-player", black_player),
+      m("span.white-player", white_player)
+    ]),
+    m("svg.dots", { width: boardLength, height: dotsHeight }, dots),
+    m("svg.board", { width: boardLength, height: boardLength }, cells),
+    m("h1.dimension", dimension + " × " + dimension)
   ];
 }
 
@@ -284,6 +264,8 @@ function flipColor(color) {
 
 function get_error_message(err) {
   let msgs = {
+    NoSelfGame:
+      "Please input an opponent other than yourself.",
     InvalidName:
       "Name must be alphanumerical with no space, and between 3 and 10 characters long.",
     InvalidOpponentName:
@@ -300,6 +282,9 @@ function get_error_message(err) {
 // The refresh timeout is global, because we want to stop it in non-game compnent.
 var timeout = null;
 
+// The error code is global to avoid showing up in the URL
+var error_code = null;
+
 // Main game UI component.
 function Game() {
   var game = null;
@@ -311,7 +296,8 @@ function Game() {
       .then(res => {
         console.log("refresh view " + JSON.stringify(res));
         if (res.length == 0) {
-          m.route.set("/play", { err: "GameCancelled" });
+          error_code = "GameCancelled";
+          m.route.set("/play");
         } else {
           game = res[0];
           m.redraw();
@@ -324,7 +310,7 @@ function Game() {
         refresh();
       });
   };
-  var start_game = function(player, opponent) {
+  var start = function(player, opponent) {
     if (putsound === null) {
       putsound = {}; // avoid loading it twice
       reversi_assets
@@ -342,11 +328,11 @@ function Game() {
           console.log(err);
         });
     }
-    console.log("start_game " + player + " against " + opponent);
+    console.log("start " + player + " against " + opponent);
     reversi
-      .start_game(opponent)
+      .start(opponent)
       .then(res => {
-        console.log("start_game res = " + JSON.stringify(res));
+        console.log("start res = " + JSON.stringify(res));
         if ("ok" in res) {
           game = res["ok"];
           console.log("start game " + JSON.stringify(game));
@@ -358,15 +344,16 @@ function Game() {
           clearTimeout(timeout);
           m.route.set("/play", { player: opponent, opponent: player });
         } else {
-          let err = Object.keys(res["err"])[0];
+          error_code = Object.keys(res["err"])[0];
           clearTimeout(timeout);
-          m.route.set("/play", { err: err });
+          m.route.set("/play");
         }
       })
       .catch(function(err) {
-        console.log("start_game error");
+        console.log("start error");
         console.log(err);
-        m.route.set("/play", { err: "StartGameError" });
+        error_code = "StartGameError";
+        m.route.set("/play");
       });
   };
 
@@ -402,7 +389,7 @@ function Game() {
         if (opponent[0] == ".") {
           opponent = opponent.substring(1);
         }
-        start_game(vnode.attrs.player, opponent);
+        start(vnode.attrs.player, opponent);
         content = m("div");
       } else {
         content = Board(color, game, next_move, function(e) {
@@ -444,31 +431,34 @@ function Play() {
       .catch(function(err) {
         console.log("register error");
         console.log(err);
-        m.route.set("/play", { err: "RegisterError" });
+        error_code = "RegisterError";
+        m.route.set("/play");
       });
   };
   var play = function(e) {
     e.preventDefault();
+	// clear error code on submit
+    error_code = null;
     console.log(player_name + " against " + opponent_name);
     reversi
       .register(player_name)
       .then(res => {
         if ("ok" in res) {
           set_player_info(res["ok"]);
-          console.log("route.set game/:player/:againt");
           m.route.set("/game/:player/:against", {
-            player: player_name,
-            against: "." + opponent_name
+            player: player_name.trim(),
+            against: "." + opponent_name.trim()
           });
         } else {
-          let err = Object.keys(res["err"])[0];
-          m.route.set("/play", { err: err });
+          error_code = Object.keys(res["err"])[0];
+          m.route.set("/play");
         }
       })
       .catch(function(err) {
         console.log("register error");
         console.log(err);
-        m.route.set("/play", { err: "RegisterError" });
+        error_code = "RegisterError";
+        m.route.set("/play");
       });
   };
   return {
@@ -484,10 +474,8 @@ function Play() {
         var title = "Welcome to Reversi!";
         var score = m("h2");
         var form = [];
-        if ("err" in vnode.attrs) {
-          let msg = get_error_message(vnode.attrs.err);
-          form.push(m("label.error", msg));
-        }
+        var error_msg = error_code ? get_error_message(error_code) : "";
+
         if (player_score === null) {
           form.push(
             m("input.input[type=text][placeholder=Your name]", {
@@ -501,7 +489,7 @@ function Play() {
           title = "Welcome back to Reversi, " + player_name + "!";
           score = m("h2", [
             m("span", "Your Score: "),
-            m("span.total_scoure", player_score)
+            m("span.total_score", player_score)
           ]);
         }
         form.push(
@@ -513,9 +501,10 @@ function Play() {
           })
         );
         form.push(m("button.button[type=submit]", "Play!"));
-        return m("div", { style: { width: boardLength + "px" } }, [
+        return m("div.cover", [
           m("h1", title),
           score,
+          m("div.error", error_msg),
           m("form", { onsubmit: play }, form)
         ]);
       }
