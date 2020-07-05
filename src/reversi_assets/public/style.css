@@ -1,4 +1,92 @@
-body { margin: 30; padding: 0; background: #b7bf76; overflow: hidden; }
-svg { width: 100%; height:inherit; }
-.score { font-family: cursive; font-size: 1.5em; }
-.point { font-size:4em; }
+body {
+  margin: 30;
+  padding: 0;
+  background: #b7bf76;
+  overflow: hidden;
+}
+div {
+  margin: auto;
+  font-family: Helvetica, Sans-Serif;
+  text-align: center;
+}
+svg {
+  margin: auto;
+  font: bold 3em Helvetica, Sans-Serif;
+  display: block;
+}
+.total_score {
+  font-color: red;
+}
+.score {
+  font-size: 3em;
+}
+.error {
+  margin-bottom: 10px;
+  color: black;
+  font-style: bold;
+}
+.dot {
+  stroke: none;
+}
+
+.hollow {
+  fill: none;
+  stroke: #888;
+  stroke-width: 1px;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-opacity: 1;
+}
+
+.white {
+  fill: #fff;
+  fill-opacity: 1;
+}
+
+.black {
+  fill: #000;
+  fill-opacity: 1;
+}
+
+@keyframes pulsate {
+  50% {
+    stroke-width: 3px;
+  }
+}
+
+body,
+.input,
+.button {
+  font: normal 16px;
+  margin: 10px;
+}
+
+.label {
+  display: block;
+  margin: 0 0 5px;
+}
+
+.input {
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  box-sizing: border-box;
+  display: block;
+  margin: 0 0 10px 10px;
+  padding: 10px 15px;
+  width: 100%;
+}
+
+.button {
+  background: #eee;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  color: #333;
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 10px 15px;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: #e8e8e8;
+}
