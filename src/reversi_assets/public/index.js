@@ -19,12 +19,17 @@ function playAudio(sound) {
   }
 }
 
+const clientRatio =
+  document.documentElement.clientWidth / document.documentElement.clientHeight;
+
+const factor = clientRatio > 0.8 ? 0.75 : 0.9;
+
 // The length (and width) of the reversi board.
 const boardLength =
   Math.min(
     document.documentElement.clientWidth,
     document.documentElement.clientHeight
-  ) * 0.85;
+  ) * factor;
 
 //////////////////////////////////////////////////////////////////////////////
 // Game logic (Copied from Motoko code)
@@ -56,17 +61,6 @@ function eventually(N, board, color, i, j, p, q) {
   }
 }
 
-// Flip pieces of opponent color into the given color starting from
-// coordinate (i, j) and along direction (p, q).
-function flip(N, board, color, i, j, p, q) {
-  if (exists(N, board, opponent(color), i, j, p, q)) {
-    let s = i + p;
-    let t = j + q;
-    board[s * N + t] = color;
-    flip(N, board, color, s, t, p, q);
-  }
-}
-
 // Return true if a valid move is possible for color at the given position (i, j).
 function validMove(N, board, color, i, j) {
   for (var p = -1; p <= 1; p++) {
@@ -84,22 +78,102 @@ function validMove(N, board, color, i, j) {
   return false;
 }
 
+// Calculate the number of validate next move for a given color.
+function validMoves(N, board, color) {
+  var count = 0;
+  for (var p = -1; p <= 1; p++) {
+    for (var q = -1; q <= 1; q++) {
+      if (board[i * N + j] == "." && valid_move(N, board, color, i, j)) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
+// Flip pieces of opponent color into the given color starting from
+// coordinate (i, j) and along direction (p, q).
+function flip(N, board, color, i, j, p, q) {
+  if (exists(N, board, opponent(color), i, j, p, q)) {
+    let s = i + p;
+    let t = j + q;
+    board[s * N + t] = color;
+    flip(N, board, color, s, t, p, q);
+  }
+}
+
+// Set a piece on the board at a given position, and flip all
+// affected opponent pieces accordingly. It requires that the
+// given position is a valid move before this call.
+function set_and_flip(N, board, color, i, j) {
+  board[i * N + j] = color;
+  for (var p = -1; p <= 1; p++) {
+    for (var q = -1; q <= 1; q++) {
+      if (!(p == 0 && q == 0)) {
+        if (
+          exists(N, board, opponent(color), i, j, p, q) &&
+          eventually(N, board, color, i, j, p, q)
+        ) {
+          flip(N, board, color, i, j, p, q);
+        }
+      }
+    }
+  }
+  return board;
+}
+
+// Given a sequence of moves, replay the board.
+function replay(N, moves) {
+  var board = new Array(N * N);
+  for (var i = 0; i < N * N; i++) {
+    board[i] = ".";
+  }
+  var color = "O";
+  for (var k = 0; k < moves.length; k++) {
+    const idx = moves[k];
+    const i = Math.floor(idx / N);
+    const j = idx % N;
+    if (k < 4) {
+      board[idx] = color;
+    } else if (validMove(N, board, color, i, j)) {
+      set_and_flip(N, board, color, i, j);
+    } else {
+      color = opponent(color);
+      set_and_flip(N, board, color, i, j);
+    }
+    color = opponent(color);
+  }
+  return board;
+}
+
+function same_color(color1, color2) {
+  return (
+    ("black" in color1 && "black" in color2) ||
+    ("white" in color1 && "white" in color2)
+  );
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // UI logic
 //////////////////////////////////////////////////////////////////////////////
 
+var animateTimeout = null;
+
 // Draw the board in SVG.
-function Board(player_color, game, onClick, onDismiss) {
+function Board(player_color, next_color, game, boards, onClick, onDismiss) {
+  console.log("redraw board");
   const white_id = game["white"][0];
   const black_id = game["black"][0];
   const white_player = game["white"][1];
   const black_player = game["black"][1];
-  const board = game["board"];
   const dimension = game.dimension.toNumber();
-  const next = game["next"];
+  const last = boards.length > 1 ? boards.shift() : null;
+  const board = boards[0];
+  const animate_list = [];
+  // const next = game["next"];
 
-  const dot_start = "white" in next ? boardLength - 90 : 10;
-  const dot_color = "white" in next ? "#fff" : "#000";
+  const dot_start = "white" in next_color ? boardLength - 90 : 10;
+  const dot_color = "white" in next_color ? "#fff" : "#000";
   let dots = [];
   let dotsHeight = 20;
   // Only draw dots if result is not out yet
@@ -119,7 +193,8 @@ function Board(player_color, game, onClick, onDismiss) {
             dur: "2s",
             values: "0;1;0",
             repeatCount: "indefinite",
-            begin: 0.3 + i * 0.3
+            begin: 0.3 + i * 0.3,
+            restart: "whenNotActive"
           })
         )
       );
@@ -138,13 +213,11 @@ function Board(player_color, game, onClick, onDismiss) {
 
   const my_piece = "black" in player_color ? "*" : "O";
   let hintColor = my_piece == "O" ? "#ddd" : "#000";
-  let hintOn =
-    ("black" in player_color && "black" in next) ||
-    ("white" in player_color && "white" in next);
+  let hintOn = same_color(player_color, next_color);
   for (var row = 0; row < dimension; row++) {
     for (var col = 0; col < dimension; col++) {
       const idx = row * dimension + col;
-      const value = board.charAt(idx);
+      const value = board[idx];
       const nextMove =
         hintOn && validMove(dimension, board, my_piece, row, col);
       let attrs = {
@@ -182,67 +255,131 @@ function Board(player_color, game, onClick, onDismiss) {
         }
       } else {
         const pieceColor = value == "O" ? "#fff" : "#000";
+        const opponentColor = value == "O" ? "#000" : "#fff";
         const strokeColor = value == "O" ? "#333" : "#888";
+        var elems = [];
+        if (last != null && last[row * dimension + col] != value) {
+          if (last[row * dimension + col] == ".") {
+            // elem = value == "O" ? "empty-white" : "empty-black";
+            elems.push(
+              m("animate", {
+                attributeName: "rx",
+                dur: "0.2s",
+                repeatCount: "1",
+                from: cellSize * 0.1,
+                to: cellSize * 0.4,
+                restart: "whenNotActive"
+              })
+            );
+            elems.push(
+              m("animate", {
+                attributeName: "ry",
+                dur: "0.2s",
+                repeatCount: "1",
+                from: cellSize * 0.1,
+                to: cellSize * 0.4,
+                restart: "whenNotActive"
+              })
+            );
+            animate_list.push("animate-" + (row * dimension + col));
+            console.log("animate");
+          } else {
+            //elem = value == "O" ? "black-white" : "white-black";
+            elems.push(
+              m("animate", {
+                attributeName: "rx",
+                dur: "0.2s",
+                repeatCount: "1",
+                values: cellSize * 0.4 + ";0;" + cellSize * 0.4,
+                restart: "whenNotActive"
+              })
+            );
+            elems.push(
+              m("animate", {
+                attributeName: "fill",
+                dur: "0.2s",
+                repeatCount: "1",
+                values: opponentColor + ";" + pieceColor,
+                restart: "whenNotActive"
+              })
+            );
+          }
+        }
         cells.push(
-          m("circle", {
-            cx: col * cellSize + cellSize * 0.5,
-            cy: row * cellSize + cellSize * 0.5,
-            r: cellSize * 0.4,
-            stroke: strokeColor,
-            "stroke-width": 2,
-            "stroke-opacity": 0.4,
-            fill: pieceColor,
-            filter: "url(#shadow)"
-          })
+          m(
+            "ellipse",
+            {
+              cx: col * cellSize + cellSize * 0.5,
+              cy: row * cellSize + cellSize * 0.5,
+              rx: cellSize * 0.4,
+              ry: cellSize * 0.4,
+              stroke: strokeColor,
+              "stroke-width": 2,
+              "stroke-opacity": 0.4,
+              fill: pieceColor,
+              filter: "url(#shadow)"
+            },
+            elems
+          )
         );
       }
     }
+
+    if (game["result"].length != 0) {
+      cells.push(
+        m("rect", {
+          x: boardLength / 8,
+          y: boardLength / 4,
+          width: (boardLength * 3) / 4,
+          height: boardLength / 2,
+          style: {
+            fill: "#685",
+            stroke: "#000",
+            strokeWidth: 3
+          },
+          onclick: onDismiss
+        })
+      );
+      cells.push(
+        m(
+          "text.score",
+          {
+            x: "50%",
+            y: "50%",
+            "dominant-baseline": "middle",
+            "text-anchor": "middle"
+          },
+          [
+            m(
+              "tspan",
+              {
+                fill: "black"
+              },
+              game.result[0]["black"].toNumber()
+            ),
+            "   :   ",
+            m(
+              "tspan",
+              {
+                fill: "white"
+              },
+              game.result[0]["white"].toNumber()
+            )
+          ]
+        )
+      );
+    }
+
+    clearTimeout(animateTimeout);
+    if (animate_list) {
+      animateTimeout = setTimeout(function() {
+        document.querySelectorAll("animate").forEach(animate => {
+          animate.beginElement();
+        });
+      }, 0);
+    }
   }
 
-  if (game["result"].length != 0) {
-    cells.push(
-      m("rect", {
-        x: boardLength / 8,
-        y: boardLength / 4,
-        width: (boardLength * 3) / 4,
-        height: boardLength / 2,
-        style: {
-          fill: "#685",
-          stroke: "#000",
-          strokeWidth: 3
-        },
-        onclick: onDismiss
-      })
-    );
-    cells.push(
-      m(
-        "text",
-        {
-          x: "50%",
-          y: "50%",
-          "dominant-baseline": "middle",
-          "text-anchor": "middle"
-        },
-        [
-          m(
-            "tspan",
-            {
-              fill: "black"
-            },
-            game.result[0]["black"].toNumber()
-          ),
-          "   :   ",
-          m(
-            "tspan",
-            {
-              fill: "white"
-            },
-            game.result[0]["white"].toNumber()
-          )
-        ]
-      )
-    );
-  }
   return [
     m("div.players", { style: { width: boardLength + "px" } }, [
       m("span.black-player", black_player),
@@ -264,8 +401,7 @@ function flipColor(color) {
 
 function get_error_message(err) {
   let msgs = {
-    NoSelfGame:
-      "Please input an opponent other than yourself.",
+    NoSelfGame: "Please input an opponent other than yourself.",
     InvalidName:
       "Name must be alphanumerical with no space, and between 3 and 10 characters long.",
     InvalidOpponentName:
@@ -280,7 +416,7 @@ function get_error_message(err) {
 }
 
 // The refresh timeout is global, because we want to stop it in non-game compnent.
-var timeout = null;
+var refreshTimeout = null;
 
 // The error code is global to avoid showing up in the URL
 var error_code = null;
@@ -288,20 +424,52 @@ var error_code = null;
 // Main game UI component.
 function Game() {
   var game = null;
-  var color = white;
+  var boards = [];
+  var last_move_length = null;
+  var player_color = null;
+  var next_color = null;
   var refresh = function() {
-    clearTimeout(timeout);
+    clearTimeout(refreshTimeout);
     reversi
       .view()
       .then(res => {
-        console.log("refresh view " + JSON.stringify(res));
+        console.log("refresh view");
+        //console.log(res);
         if (res.length == 0) {
           error_code = "GameCancelled";
           m.route.set("/play");
         } else {
           game = res[0];
-          m.redraw();
-          timeout = setTimeout(refresh, 1000);
+          if (game.moves.length > last_move_length) {
+            let opponent_piece = "white" in player_color ? "*" : "O";
+            const N = game.dimension.toNumber();
+            while (last_move_length < game.moves.length) {
+              playAudio(putsound);
+              const idx = game.moves[last_move_length];
+              const i = Math.floor(idx / N);
+              const j = idx % N;
+              var board = Array.from(boards[boards.length - 1]);
+              set_and_flip(N, board, opponent_piece, i, j);
+              boards.push(board);
+              last_move_length += 1;
+            }
+            let matched = game.board == board.join("");
+            console.log("board match " + matched);
+            if (!matched) {
+              console.log("game board: " + game.board);
+              console.log("my   board: " + board.join(""));
+            }
+            m.redraw();
+          } else if (game.result.length > 0) {
+            m.redraw();
+          } else if (
+            game.moves.length == last_move_length &&
+            !same_color(next_color, game.next)
+          ) {
+            next_color = game.next;
+            m.redraw();
+          }
+          refreshTimeout = setTimeout(refresh, 1000);
         }
       })
       .catch(function(err) {
@@ -335,17 +503,20 @@ function Game() {
         console.log("start res = " + JSON.stringify(res));
         if ("ok" in res) {
           game = res["ok"];
+          const N = game.dimension.toNumber();
+          var board = replay(N, game.moves);
+          boards.push(board);
+          last_move_length = game.moves.length;
           console.log("start game " + JSON.stringify(game));
-          color = game.white[1] == player ? white : black;
+          player_color = game.white[1] == player ? white : black;
+          next_color = game.next;
           m.redraw();
           refresh();
         } else if ("PlayerNotFound" in res["err"]) {
           // maybe name was reversed? try again from play UI.
-          clearTimeout(timeout);
           m.route.set("/play", { player: opponent, opponent: player });
         } else {
           error_code = Object.keys(res["err"])[0];
-          clearTimeout(timeout);
           m.route.set("/play");
         }
       })
@@ -363,24 +534,36 @@ function Game() {
     const row = Math.floor(idx / dimension);
     const col = idx % dimension;
     playAudio(putsound);
-    console.log(JSON.stringify(color) + " move " + row + ", " + col);
-    reversi
-      .move(row, col)
-      .then(res => {
-        if ("OK" in res || "Pass" in res || "GameOver" in res) {
-          refresh();
-        } else {
-          console.log(JSON.stringify(res));
-        }
-      })
-      .catch(function(err) {
-        console.log("move error, ignore");
-        console.log(err);
-      });
+    console.log(JSON.stringify(player_color) + " move " + row + ", " + col);
+    const piece = "white" in player_color ? "O" : "*";
+    var board = boards[boards.length - 1];
+    if (
+      same_color(player_color, next_color) &&
+      validMove(dimension, board, piece, row, col)
+    ) {
+      last_move_length += 1;
+      board = Array.from(board);
+      set_and_flip(dimension, board, piece, row, col);
+      boards.push(board);
+      next_color = flipColor(player_color);
+      reversi
+        .move(row, col)
+        .then(res => {
+          if ("OK" in res || "Pass" in res || "GameOver" in res) {
+          } else {
+            console.log(JSON.stringify(res));
+          }
+        })
+        .catch(function(err) {
+          console.log("move error, ignore");
+          console.log(err);
+        });
+    }
+    m.redraw();
   };
   return {
     onremove: function(vnode) {
-      clearTimeout(timeout);
+      clearTimeout(refreshTimeout);
     },
     view: function(vnode) {
       var content;
@@ -392,10 +575,16 @@ function Game() {
         start(vnode.attrs.player, opponent);
         content = m("div");
       } else {
-        content = Board(color, game, next_move, function(e) {
-          clearTimeout(timeout);
-          m.route.set("/play");
-        });
+        content = Board(
+          player_color,
+          next_color,
+          game,
+          boards,
+          next_move,
+          function(e) {
+            m.route.set("/play");
+          }
+        );
       }
       return m("div", content);
     }
@@ -404,19 +593,19 @@ function Game() {
 
 // these are global because we want to come back to /play remembering previous settings.
 var inited = null;
-var player_name = "";
+var player_name = null;
 var player_score = null;
 
 // Play screen UI component.
 function Play() {
-  var opponent_name = "";
+  var opponent_name = null;
   var set_player_info = function(info) {
     player_name = info["name"];
     player_score = info["score"].toNumber();
   };
   var init_play = function() {
-    if (timeout) {
-      clearTimeout(timeout);
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
     }
     reversi
       .register("")
@@ -437,7 +626,7 @@ function Play() {
   };
   var play = function(e) {
     e.preventDefault();
-	// clear error code on submit
+    // clear error code on submit
     error_code = null;
     console.log(player_name + " against " + opponent_name);
     reversi
@@ -464,10 +653,10 @@ function Play() {
   return {
     oninit: init_play,
     view: function(vnode) {
-      if (vnode.attrs.player && player_name == "") {
+      if (vnode.attrs.player && player_name == null) {
         player_name = vnode.attrs.player;
       }
-      if (vnode.attrs.opponent && opponent_name == "") {
+      if (vnode.attrs.opponent && opponent_name == null) {
         opponent_name = vnode.attrs.opponent;
       }
       if (inited) {
@@ -501,12 +690,15 @@ function Play() {
           })
         );
         form.push(m("button.button[type=submit]", "Play!"));
-        return m("div.cover", [
-          m("h1", title),
-          score,
-          m("div.error", error_msg),
-          m("form", { onsubmit: play }, form)
-        ]);
+        return m(
+          "div.centered",
+          m("div.cover", [
+            m("h1", title),
+            score,
+            m("div.error", error_msg),
+            m("form", { onsubmit: play }, form)
+          ])
+        );
       }
     }
   };

@@ -1,8 +1,13 @@
 body {
-  margin: 30;
   padding: 0;
   background: #b7bf76;
-  overflow: hidden;
+}
+
+.centered {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
 }
 
 div {
@@ -38,6 +43,18 @@ svg {
 
 .dots {
   margin-bottom: 10px;
+}
+
+.empty-black {
+}
+
+.empty-white {
+}
+
+.white-black {
+}
+
+.black-white {
 }
 
 .board {

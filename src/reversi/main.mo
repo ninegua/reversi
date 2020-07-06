@@ -34,8 +34,8 @@ type MoveResult = {
 // Color related type and constants
 type Color = { #black; #white; };
 let empty : ?Color = null;
-let white : ?Color = ?(#black);
-let black : ?Color = ?(#white);
+let white : ?Color = ?(#white);
+let black : ?Color = ?(#black);
 
 type Board = [var ?Color];
 
@@ -75,6 +75,7 @@ type GameState = {
 type GameView = {
   dimension: Nat;
   board: Text;
+  moves: [Nat8];
   black: (?(), PlayerName);
   white: (?(), PlayerName);
   next: Color;
@@ -239,9 +240,9 @@ actor {
     switch (lookup_player_by_id(player_id)) {
       case null (#err(#PlayerNotFound));
       case (?player) {
-		if (player.name == opponent_name) {
+        if (player.name == opponent_name) {
           return #err(#NoSelfGame);
-	    };
+        };
         // allow empty opponent name
         if (opponent_name == "") {
           switch (lookup_game_by_name(player.name)) {
@@ -275,18 +276,25 @@ actor {
                 reset_game(game_A);
               };
               #ok(state_to_view(game_A))
-            } else {
-              // Not the same game, do not touch game_B.
+            } else if (eq_nocase(player.name, game_B.white.1)) {
+              // opponent is expecting player, quit from game_A
               if (eq_nocase(player.name, game_A.black.1)) {
-                // If player is black in game_A, we have changed the opponent, reset it
-                game_A.white := (null, opponent_name);
-                reset_game(game_A);
-                #ok(state_to_view(game_A))
+                game_A.black := (null, "");
               } else {
-                // If player is white in game_A, quit it, and start a new one
                 game_A.white := (null, "");
-                #ok(state_to_view(add_game(player_id, player.name, opponent_name)))
-              }
+              };
+              game_B.white := (?player_id, player.name);
+              #ok(state_to_view(game_B))
+            } else if (eq_nocase(player.name, game_A.black.1)) {
+              // opponent is not expecting player, leave game_B alone
+              // if player is black in game_A, we have changed the opponent, reset it
+              game_A.white := (null, opponent_name);
+              reset_game(game_A);
+              #ok(state_to_view(game_A))
+            } else {
+              // If player is white in game_A, quit it, and start a new one
+              game_A.white := (null, "");
+              #ok(state_to_view(add_game(player_id, player.name, opponent_name)))
             }
           };
           // opponent already in a game
@@ -412,6 +420,7 @@ actor {
       black = (Option.map<PlayerId, ()>(black_id, func(_): () { () }), black_name);
       white = (Option.map<PlayerId, ()>(white_id, func(_): () { () }), white_name);
       board = render_board(game.dimension, game.board);
+      moves = game.moves.toArray();
       dimension = game.dimension;
       next = game.next;
       result = game.result;
