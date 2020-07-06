@@ -21,6 +21,10 @@ svg {
   display: block;
 }
 
+.no-flicker {
+  -webkit-transform-style: preserve-3d;
+}
+
 .players {
   display: flex;
   margin-top: 10px;
@@ -32,14 +36,14 @@ svg {
   color: black;
   text-align: left;
   flex-grow: 1;
-} 
+}
 
 .white-player {
   font: bold 3em Helvetica, Sans-Serif;
   color: white;
   text-align: right;
   flex-grow: 1;
-} 
+}
 
 .dots {
   margin-bottom: 10px;
@@ -110,6 +114,21 @@ svg {
 
 .cover {
   width: 20em;
+}
+
+.tip {
+  margin-top: 50px;
+  margin-left: 10px;
+  color: #363;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8em;
+}
+
+.tip ol {
+  margin: 0;
+  padding-left: 1em;
+  padding-right: 0;
 }
 
 body,

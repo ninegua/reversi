@@ -11,7 +11,7 @@ The game backend is written in [Motoko].
 
 `register(player_name)` - Register the caller using the player name.
 
-`start_game(opponent_name)` - Start a game expecting an opponent.
+`start(opponent_name)` - Start a game expecting an opponent.
 If the name is empty string, the game will accept whoever joins next.
 The first player starting a game will play black, and the second player will play white.
 

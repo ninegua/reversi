@@ -161,21 +161,21 @@ var animateTimeout = null;
 
 // Draw the board in SVG.
 function Board(player_color, next_color, game, boards, onClick, onDismiss) {
-  console.log("redraw board");
   const white_id = game["white"][0];
   const black_id = game["black"][0];
   const white_player = game["white"][1];
   const black_player = game["black"][1];
   const dimension = game.dimension.toNumber();
-  const last = boards.length > 1 ? boards.shift() : null;
-  const board = boards[0];
+  const last = boards.length > 1 ? boards[0].board : null;
+  const board = boards.length > 1 ? boards[1].board : boards[0].board;
   const animate_list = [];
-  // const next = game["next"];
+  console.log("redraw board " + boards.length);
 
   const dot_start = "white" in next_color ? boardLength - 90 : 10;
   const dot_color = "white" in next_color ? "#fff" : "#000";
   let dots = [];
   let dotsHeight = 20;
+
   // Only draw dots if result is not out yet
   if (game["result"].length == 0) {
     for (var i = 0; i < 5; i++) {
@@ -194,7 +194,8 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
             values: "0;1;0",
             repeatCount: "indefinite",
             begin: 0.3 + i * 0.3,
-            restart: "whenNotActive"
+            restart: "whenNotActive",
+            id: "dot-" + i
           })
         )
       );
@@ -205,8 +206,17 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
   let cells = [];
   cells.push(
     m("defs", [
-      m("filter", { id: "shadow" }, [
+      m("filter", { id: "shadow-0" }, [
         m("feDropShadow", { dx: 2, dy: 4, stdDeviation: 0.5 })
+      ]),
+      m("filter", { id: "shadow-45" }, [
+        m("feDropShadow", { dx: 4.22, dy: 1.46, stdDeviation: 0.5 })
+      ]),
+      m("filter", { id: "shadow-90" }, [
+        m("feDropShadow", { dx: 4, dy: -2, stdDeviation: 0.5 })
+      ]),
+      m("filter", { id: "shadow-135" }, [
+        m("feDropShadow", { dx: 1.46, dy: -4.22, stdDeviation: 0.5 })
       ])
     ])
   );
@@ -230,7 +240,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
           stroke: "#000",
           strokeWidth: 1
         },
-        id: row * dimension + col
+        id: idx
       };
       if (value == "." && nextMove) {
         attrs["onclick"] = onClick;
@@ -254,129 +264,161 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
           );
         }
       } else {
-        const pieceColor = value == "O" ? "#fff" : "#000";
-        const opponentColor = value == "O" ? "#000" : "#fff";
-        const strokeColor = value == "O" ? "#333" : "#888";
-        var elems = [];
-        if (last != null && last[row * dimension + col] != value) {
-          if (last[row * dimension + col] == ".") {
-            // elem = value == "O" ? "empty-white" : "empty-black";
+        let pieceColor = value == "O" ? "#fff" : "#000";
+        let opponentColor = value == "O" ? "#000" : "#fff";
+        let strokeColor = value == "O" ? "#333" : "#888";
+        let elems = [];
+        let radius = cellSize * 0.4;
+        let degree = 0;
+        if (last != null && last[idx] != value) {
+          console.log([row, col, last[idx], value]);
+          if (last[idx] == ".") {
             elems.push(
               m("animate", {
                 attributeName: "rx",
+                begin: "indefinite",
                 dur: "0.2s",
                 repeatCount: "1",
                 from: cellSize * 0.1,
-                to: cellSize * 0.4,
-                restart: "whenNotActive"
+                to: radius,
+                fill: "freeze"
               })
             );
             elems.push(
               m("animate", {
                 attributeName: "ry",
+                begin: "indefinite",
                 dur: "0.2s",
                 repeatCount: "1",
                 from: cellSize * 0.1,
-                to: cellSize * 0.4,
-                restart: "whenNotActive"
+                to: radius,
+                fill: "freeze"
               })
             );
-            animate_list.push("animate-" + (row * dimension + col));
-            console.log("animate");
+            radius = cellSize * 0.1;
+            animate_list.push("animate-" + idx);
           } else {
-            //elem = value == "O" ? "black-white" : "white-black";
             elems.push(
               m("animate", {
                 attributeName: "rx",
-                dur: "0.2s",
+                begin: "indefinite",
+                dur: "0.4s",
                 repeatCount: "1",
-                values: cellSize * 0.4 + ";0;" + cellSize * 0.4,
-                restart: "whenNotActive"
+                values: [radius, radius, "0", radius].join(";"),
+                fill: "freeze"
               })
             );
             elems.push(
               m("animate", {
                 attributeName: "fill",
-                dur: "0.2s",
+                begin: "indefinite",
+                dur: "0.4s",
                 repeatCount: "1",
-                values: opponentColor + ";" + pieceColor,
-                restart: "whenNotActive"
+                values: [opponentColor, opponentColor, "#888", pieceColor].join(
+                  ";"
+                ),
+                fill: "freeze"
               })
             );
+            pieceColor = opponentColor;
+            let dy = boards[1].row - row;
+            let dx = boards[1].col - col;
+            if (dx == 0) {
+              degree = 90;
+            } else if (dy == 0) {
+              degree = 0;
+            } else if (dx < 0) {
+              degree = dy > 0 ? 135 : 45;
+            } else {
+              degree = dy > 0 ? 45 : 135;
+            }
           }
         }
+        const cx = col * cellSize + cellSize * 0.5;
+        const cy = row * cellSize + cellSize * 0.5;
         cells.push(
           m(
-            "ellipse",
+            "ellipse.no-flicker",
             {
-              cx: col * cellSize + cellSize * 0.5,
-              cy: row * cellSize + cellSize * 0.5,
-              rx: cellSize * 0.4,
-              ry: cellSize * 0.4,
+              cx: cx,
+              cy: cy,
+              rx: radius,
+              ry: radius,
               stroke: strokeColor,
               "stroke-width": 2,
               "stroke-opacity": 0.4,
               fill: pieceColor,
-              filter: "url(#shadow)"
+              filter: "url(#shadow-" + degree + ")",
+              transform: "rotate(" + degree + " " + cx + " " + cy + ")"
             },
             elems
           )
         );
       }
     }
+  }
 
-    if (game["result"].length != 0) {
-      cells.push(
-        m("rect", {
-          x: boardLength / 8,
-          y: boardLength / 4,
-          width: (boardLength * 3) / 4,
-          height: boardLength / 2,
-          style: {
-            fill: "#685",
-            stroke: "#000",
-            strokeWidth: 3
-          },
-          onclick: onDismiss
-        })
-      );
-      cells.push(
-        m(
-          "text.score",
-          {
-            x: "50%",
-            y: "50%",
-            "dominant-baseline": "middle",
-            "text-anchor": "middle"
-          },
-          [
-            m(
-              "tspan",
-              {
-                fill: "black"
-              },
-              game.result[0]["black"].toNumber()
-            ),
-            "   :   ",
-            m(
-              "tspan",
-              {
-                fill: "white"
-              },
-              game.result[0]["white"].toNumber()
-            )
-          ]
-        )
-      );
-    }
+  // Show game result if it has ended
+  if (game["result"].length != 0) {
+    cells.push(
+      m("rect", {
+        x: boardLength / 8,
+        y: boardLength / 4,
+        width: (boardLength * 3) / 4,
+        height: boardLength / 2,
+        style: {
+          fill: "#685",
+          stroke: "#000",
+          strokeWidth: 3
+        },
+        onclick: onDismiss
+      })
+    );
+    cells.push(
+      m(
+        "text.score",
+        {
+          x: "50%",
+          y: "50%",
+          "dominant-baseline": "middle",
+          "text-anchor": "middle"
+        },
+        [
+          m("tspan", { fill: "black" }, game.result[0]["black"].toNumber()),
+          "   :   ",
+          m("tspan", { fill: "white" }, game.result[0]["white"].toNumber())
+        ]
+      )
+    );
+  }
 
-    clearTimeout(animateTimeout);
-    if (animate_list) {
-      animateTimeout = setTimeout(function() {
-        document.querySelectorAll("animate").forEach(animate => {
+  // Need to kick start animate element for svg, otherwise animation
+  // will only show once and then stop running, even when new animate
+  // elements are created. This is likely due to mithril caching, not
+  // sure if there is an alternative work-around.
+  clearTimeout(animateTimeout);
+  if (animate_list) {
+    animateTimeout = setTimeout(function() {
+      document.querySelectorAll("animate").forEach(animate => {
+        if (!animate.id.startsWith("dot")) {
           animate.beginElement();
-        });
-      }, 0);
+        }
+      });
+      setTimeout(function() {
+        if (boards.length > 1) {
+          boards.shift();
+          if (boards.length > 1) {
+            m.redraw();
+          }
+        }
+      }, 300);
+    }, 0);
+  } else {
+    if (boards.length > 1) {
+      boards.shift();
+      if (boards.length > 1) {
+        m.redraw();
+      }
     }
   }
 
@@ -433,7 +475,7 @@ function Game() {
     reversi
       .view()
       .then(res => {
-        console.log("refresh view");
+        //console.log("refresh view");
         //console.log(res);
         if (res.length == 0) {
           error_code = "GameCancelled";
@@ -448,9 +490,9 @@ function Game() {
               const idx = game.moves[last_move_length];
               const i = Math.floor(idx / N);
               const j = idx % N;
-              var board = Array.from(boards[boards.length - 1]);
+              var board = Array.from(boards[boards.length - 1].board);
               set_and_flip(N, board, opponent_piece, i, j);
-              boards.push(board);
+              boards.push({ row: i, col: j, board: board });
               last_move_length += 1;
             }
             let matched = game.board == board.join("");
@@ -505,7 +547,7 @@ function Game() {
           game = res["ok"];
           const N = game.dimension.toNumber();
           var board = replay(N, game.moves);
-          boards.push(board);
+          boards.push({ row: -1, col: -1, board: board });
           last_move_length = game.moves.length;
           console.log("start game " + JSON.stringify(game));
           player_color = game.white[1] == player ? white : black;
@@ -536,7 +578,7 @@ function Game() {
     playAudio(putsound);
     console.log(JSON.stringify(player_color) + " move " + row + ", " + col);
     const piece = "white" in player_color ? "O" : "*";
-    var board = boards[boards.length - 1];
+    var board = boards[boards.length - 1].board;
     if (
       same_color(player_color, next_color) &&
       validMove(dimension, board, piece, row, col)
@@ -544,7 +586,7 @@ function Game() {
       last_move_length += 1;
       board = Array.from(board);
       set_and_flip(dimension, board, piece, row, col);
-      boards.push(board);
+      boards.push({ row: row, col: col, board: board });
       next_color = flipColor(player_color);
       reversi
         .move(row, col)
@@ -626,6 +668,10 @@ function Play() {
   };
   var play = function(e) {
     e.preventDefault();
+    if (player_name == null || player_name == "") {
+      error_code = "InvalidName";
+      return;
+    }
     // clear error code on submit
     error_code = null;
     console.log(player_name + " against " + opponent_name);
@@ -636,7 +682,7 @@ function Play() {
           set_player_info(res["ok"]);
           m.route.set("/game/:player/:against", {
             player: player_name.trim(),
-            against: "." + opponent_name.trim()
+            against: "." + (opponent_name ? opponent_name.trim() : "")
           });
         } else {
           error_code = Object.keys(res["err"])[0];
@@ -696,7 +742,17 @@ function Play() {
             m("h1", title),
             score,
             m("div.error", error_msg),
-            m("form", { onsubmit: play }, form)
+            m("form", { onsubmit: play }, form),
+            m("div.tip", [
+              "To invite a friend:",
+              m("ol", [
+                m("li", [
+                  "Enter both of your names and click ",
+                  m("i", "Play!")
+                ]),
+                m("li", "Once you are in game, share the URL with your friend.")
+              ])
+            ])
           ])
         );
       }
