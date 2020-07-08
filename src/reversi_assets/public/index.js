@@ -491,7 +491,6 @@ function Game() {
           let black_name = game ? game["black"][1] : null;
           let white_name = game ? game["white"][1] : null;
           game = res[0];
-		  console.log(game);
           if (game.moves.length > last_move_length) {
             // handle new moves
             let opponent_piece = "white" in player_color ? "*" : "O";
@@ -550,7 +549,7 @@ function Game() {
       });
   };
   var start = function(player, opponent) {
-	clearTimeout(refreshTimeout);
+    clearTimeout(refreshTimeout);
     if (putsound === null) {
       putsound = {}; // avoid loading it twice
       reversi_assets
@@ -703,7 +702,7 @@ function Tips() {
   let next = 0;
   let tips = [
     [
-      m("h4", "Rules:"),
+      m("h4", "How to play:"),
       m("ol", [
         m("li", "1st player joining a game plays black."),
         m("li", "2nd player joining a game plays white."),
@@ -718,18 +717,17 @@ function Tips() {
       ])
     ],
     [
-      m("h4", "To wait for a game:"),
-      m("ol", [
-        m("li", ["Leave the opponent name empty and click ", m("i", "Play!")]),
-        m("li", "Once you are in game, share the URL."),
-        m("li", "First person clicking the URL will join your game.")
-      ])
-    ],
-    [
-      m("h4", "How the score works:"),
+      m("h4", "How to score:"),
       m("ol", [
         m("li", "Get points by winning a game."),
         m("li", "Get more by beating higher-score players!")
+      ])
+    ],
+    [
+      m("h4", "To invite anyone:"),
+      m("ol", [
+        m("li", ["Leave the opponent name empty and click ", m("i", "Play!")]),
+        m("li", "Once you are in game, share the URL with anyone."),
       ])
     ]
   ];
@@ -768,7 +766,7 @@ function Tips() {
       })
       .catch(function(err) {
         console.log("Refresh list error, ignore");
-        console.log(e);
+        console.log(err);
       });
   };
 
@@ -905,7 +903,11 @@ function Play() {
             })
           );
         } else {
-          title = "Welcome back to Reversi, " + player_name + "!";
+          title = [
+            "Welcome back to Reversi, ",
+            m("span.player-name", player_name),
+            "!"
+          ];
           score = m("h2", [
             m("span", "Your Score: "),
             m("span.player-score", player_score)

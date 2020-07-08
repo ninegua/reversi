@@ -4,13 +4,15 @@ body {
 }
 
 @font-face {
-    font-family: 'Akbar-Plain';
-    src:url('https://thev.net/fonts/akbar/Akbar-Plain.ttf.woff') format('woff'),
-        url('https://thev.net/fonts/akbar/Akbar-Plain.ttf.svg#Akbar-Plain') format('svg'),
-        url('https://thev.net/fonts/akbar/Akbar-Plain.ttf.eot'),
-        url('https://thev.net/fonts/akbar/Akbar-Plain.ttf.eot?#iefix') format('embedded-opentype'); 
-    font-weight: normal;
-    font-style: normal;
+  font-family: "Akbar-Plain";
+  src: url("https://thev.net/fonts/akbar/Akbar-Plain.ttf.woff") format("woff"),
+    url("https://thev.net/fonts/akbar/Akbar-Plain.ttf.svg#Akbar-Plain")
+      format("svg"),
+    url("https://thev.net/fonts/akbar/Akbar-Plain.ttf.eot"),
+    url("https://thev.net/fonts/akbar/Akbar-Plain.ttf.eot?#iefix")
+      format("embedded-opentype");
+  font-weight: normal;
+  font-style: normal;
 }
 
 .top-centered {
@@ -41,7 +43,7 @@ body {
 
 div {
   margin: auto;
-  font-family: 'Akbar-Plain';
+  font-family: "Akbar-Plain";
   text-align: center;
 }
 
@@ -61,14 +63,14 @@ svg {
 }
 
 .black-player {
-  font: bold 3em 'Akbar-Plain';
+  font: bold 2em "Akbar-Plain";
   color: black;
   text-align: left;
   flex-grow: 1;
 }
 
 .white-player {
-  font: bold 3em 'Akbar-Plain';
+  font: bold 2em "Akbar-Plain";
   color: white;
   text-align: right;
   flex-grow: 1;
@@ -97,7 +99,7 @@ svg {
 
 .error {
   color: #060;
-  font-family: 'Akbar-Plain';
+  font-family: "Akbar-Plain";
   margin-bottom: 20px;
 }
 
@@ -150,6 +152,10 @@ svg {
   }
 }
 
+.player-name {
+  color: #060;
+}
+
 .tips {
   margin-top: 10px;
   margin-left: 10px;
@@ -163,8 +169,12 @@ svg {
   text-align: left;
 }
 
-a, a:link, a:hover, a:active, a:visited {
-  color: #363; 
+a,
+a:link,
+a:hover,
+a:active,
+a:visited {
+  color: #363;
   text-decoration: none;
 }
 
@@ -209,7 +219,7 @@ body,
 .input,
 .label,
 .button {
-  font-family: 'Akbar-Plain';
+  font-family: "Akbar-Plain";
   margin: 10px;
 }
 
