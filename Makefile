@@ -1,39 +1,53 @@
+PROVIDER ?= local
 MODE ?= install
 PROJECT=reversi
-MO_SRC:=src/$(PROJECT)/main.mo
+MO_SRC:=src/$(PROJECT)/main.mo src/$(PROJECT)/game.mo
 JS_SRC:=src/$(PROJECT)_assets/public/index.js src/$(PROJECT)_assets/public/style.css
 JS_CFG:=package-lock.json webpack.config.js
 DFX_CFG:=dfx.json
 
-CANISTER_TARGET:=canisters/$(PROJECT)/main.wasm
-ASSETS_TARGET:=canisters/$(PROJECT)_assets/$(PROJECT)_assets.wasm
-JS_TARGET:=canisters/$(PROJECT)_assets/assets/index.js
-MANIFEST:=canisters/canister_manifest.json
+OBJ_DIR:=canisters.$(PROVIDER)
 
+CANISTER_TARGET:=$(OBJ_DIR)/$(PROJECT)/main.wasm
+ASSETS_TARGET:=$(OBJ_DIR)/$(PROJECT)_assets/$(PROJECT)_assets.wasm
+JS_TARGET:=$(OBJ_DIR)/$(PROJECT)_assets/assets/index.js
+MANIFEST:=$(OBJ_DIR)/canister_manifest.json
 
-all: $(CANISTER_TARGET) $(JS_TARGET) $(ASSETS_TARGET) node_modules
+# all: $(CANISTER_TARGET) $(JS_TARGET) $(ASSETS_TARGET) node_modules
+help:
+	@echo 'USAGE: make [PROVIDER=...] [install|reinstall|upgrade|clean|canister|assets]'
+	@echo
+	@echo 'Build & install instructions:'
+	@echo
+	@echo '  install|reinstall|upgrade -- Build and install canisters with different mode.'
+	@echo '  clean                     -- Remove build products.'
+	@echo '  canister                  -- Only build the main canister'
+	@echo '  assets                    -- Build both the main and assets canister.'
+	@echo 
+	@echo 'The PROVIDER variable is optional. It corresponds to "networks" configuration in'
+	@echo 'the dfx.json file. Default is "local".'
 
-.PHONY: all
+.PHONY: help all canisters
 
-node_modules package-lock.json : package.json
-	npm install
+canisters.$(PROVIDER):
+	mkdir canisters.$(PROVIDER)
 
-$(MANIFEST): $(DFX_CFG)
-	dfx canister create --all
+canisters: canisters.$(PROVIDER)
+	test $$(readlink canisters) = canisters.$(PROVIDER) || $$(rm -f canisters && ln -s canisters.$(PROVIDER) canisters)
 
-$(CANISTER_TARGET): $(MANIFEST) $(MO_SRC) $(DFX_CFG)
-	dfx build --skip-frontend --skip-manifest
+.PHONY: canister assets
 
-$(ASSETS_TARGET) $(JS_TARGET) : $(MANIFEST) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(DFX_CFG) node_modules
-	dfx build --skip-manifest
+canister: $(CANISTER_TARGET)
+
+assets: $(ASSETS_TARGET)
 
 .PHONY: reinstall install install-canister install-assets
 
-install-canister: $(MANIFEST) $(CANISTER_TARGET) $(DFX_CFG)
-	dfx canister install --mode $(MODE) $(PROJECT)
+install-canister: $(MANIFEST) $(CANISTER_TARGET) $(DFX_CFG) canisters
+	dfx canister --network $(PROVIDER) install --mode $(MODE) $(PROJECT)
 
-install-assets: $(JS_TARGET) $(ASSETS_TARGET) $(DFX_CFG)
-	dfx canister install --mode $(MODE) $(PROJECT)_assets
+install-assets: $(JS_TARGET) $(ASSETS_TARGET) $(DFX_CFG) canisters
+	dfx canister --network $(PROVIDER) install --mode $(MODE) $(PROJECT)_assets
 
 install: install-assets install-canister
 
@@ -54,9 +68,23 @@ upgrade-assets:
 .PHONY: clean clean-state clean-all
 
 clean: 
-	rm -rf canisters
+	rm -rf $(OBJ_DIR)
 
 clean-state:
 	rm -rf .dfx
 
 cleanall: clean clean-state
+
+######################
+
+node_modules package-lock.json : package.json
+	npm install
+
+$(MANIFEST): $(DFX_CFG) canisters
+	dfx canister --network $(PROVIDER) create --all
+
+$(CANISTER_TARGET): $(MANIFEST) $(MO_SRC) $(DFX_CFG)
+	dfx build --network $(PROVIDER) --skip-frontend --skip-manifest
+
+$(ASSETS_TARGET) $(JS_TARGET) : $(MANIFEST) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(DFX_CFG) node_modules
+	dfx build --network $(PROVIDER)

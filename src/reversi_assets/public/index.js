@@ -2,6 +2,8 @@ import reversi from "ic:canisters/reversi";
 import reversi_assets from "ic:canisters/reversi_assets";
 import "./style.css";
 
+document.title = "Reversi Game on IC";
+
 // The sound of putting down a piece. It will be loaded from reversi_assets.
 var putsound = null;
 
@@ -169,7 +171,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
   const last = boards.length > 1 ? boards[0].board : null;
   const board = boards.length > 1 ? boards[1].board : boards[0].board;
   const animate_list = [];
-  console.log("redraw board " + boards.length);
+  console.log("Redraw board " + boards.length);
 
   const dot_start = "white" in next_color ? boardLength - 90 : 10;
   const dot_color = "white" in next_color ? "#fff" : "#000";
@@ -271,7 +273,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
         let radius = cellSize * 0.4;
         let degree = 0;
         if (last != null && last[idx] != value) {
-          console.log([row, col, last[idx], value]);
+          //console.log([row, col, last[idx], value]);
           if (last[idx] == ".") {
             elems.push(
               m("animate", {
@@ -399,7 +401,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
   clearTimeout(animateTimeout);
   if (animate_list) {
     animateTimeout = setTimeout(function() {
-      document.querySelectorAll("animate").forEach(animate => {
+      document.querySelectorAll("animate").forEach(function(animate) {
         if (!animate.id.startsWith("dot")) {
           animate.beginElement();
         }
@@ -474,15 +476,18 @@ function Game() {
     clearTimeout(refreshTimeout);
     reversi
       .view()
-      .then(res => {
-        //console.log("refresh view");
-        //console.log(res);
+      .then(function(res) {
+        // console.log("refresh view");
+        // console.log(res);
         if (res.length == 0) {
           error_code = "GameCancelled";
           m.route.set("/play");
         } else {
+          let black_name = game ? game["black"][1] : null;
+          let white_name = game ? game["white"][1] : null;
           game = res[0];
           if (game.moves.length > last_move_length) {
+            // handle new moves
             let opponent_piece = "white" in player_color ? "*" : "O";
             const N = game.dimension.toNumber();
             while (last_move_length < game.moves.length) {
@@ -496,26 +501,34 @@ function Game() {
               last_move_length += 1;
             }
             let matched = game.board == board.join("");
-            console.log("board match " + matched);
             if (!matched) {
-              console.log("game board: " + game.board);
-              console.log("my   board: " + board.join(""));
+              console.log("CRITICAL ERROR!!!");
+              console.log("Game  board: " + game.board);
+              console.log("Local board: " + board.join(""));
             }
             m.redraw();
           } else if (game.result.length > 0) {
+            // handle end of game
             m.redraw();
           } else if (
             game.moves.length == last_move_length &&
             !same_color(next_color, game.next)
           ) {
+            // redraw when next player has changed
             next_color = game.next;
+            m.redraw();
+          } else if (
+            black_name != game["black"][1] ||
+            white_name != game["white"][1]
+          ) {
+            // redraw when player name has changed
             m.redraw();
           }
           refreshTimeout = setTimeout(refresh, 1000);
         }
       })
       .catch(function(err) {
-        console.log("view error, will try again.");
+        console.log("View error, will try again.");
         console.log(err);
         refresh();
       });
@@ -525,31 +538,31 @@ function Game() {
       putsound = {}; // avoid loading it twice
       reversi_assets
         .retrieve("put.mp3")
-        .then(array => {
+        .then(function(array) {
           let buffer = new Uint8Array(array);
           var context = new AudioContext();
           context.decodeAudioData(buffer.buffer, function(res) {
-            console.log("Audio is loaded");
+            //console.log("Audio is loaded");
             putsound = { buffer: res, context: context };
           });
         })
         .catch(function(err) {
-          console.log("asset retrieve error, ignore");
+          console.log("Asset retrieve error, ignore");
           console.log(err);
         });
     }
-    console.log("start " + player + " against " + opponent);
+    console.log("Start " + player + " against " + opponent);
     reversi
       .start(opponent)
-      .then(res => {
-        console.log("start res = " + JSON.stringify(res));
+      .then(function(res) {
+        //console.log("start res = " + JSON.stringify(res));
         if ("ok" in res) {
           game = res["ok"];
           const N = game.dimension.toNumber();
           var board = replay(N, game.moves);
           boards.push({ row: -1, col: -1, board: board });
           last_move_length = game.moves.length;
-          console.log("start game " + JSON.stringify(game));
+          //console.log("start game " + JSON.stringify(game));
           player_color = game.white[1] == player ? white : black;
           next_color = game.next;
           m.redraw();
@@ -563,7 +576,7 @@ function Game() {
         }
       })
       .catch(function(err) {
-        console.log("start error");
+        console.log("Start error");
         console.log(err);
         error_code = "StartGameError";
         m.route.set("/play");
@@ -590,14 +603,15 @@ function Game() {
       next_color = flipColor(player_color);
       reversi
         .move(row, col)
-        .then(res => {
+        .then(function(res) {
           if ("OK" in res || "Pass" in res || "GameOver" in res) {
           } else {
+            console.log("Unhandled game error, should not have happened!");
             console.log(JSON.stringify(res));
           }
         })
         .catch(function(err) {
-          console.log("move error, ignore");
+          console.log("Move error, ignore");
           console.log(err);
         });
     }
@@ -633,34 +647,173 @@ function Game() {
   };
 }
 
+function make_player_list(players, ordered) {
+  let half = players.slice(0, 4);
+  let more = players.slice(5, 8);
+  let l = ordered ? "ol" : "ul";
+  let make_player_link = function(player) {
+    return m(
+      "li",
+      m(m.route.Link, { href: "/play?opponent=" + player.name }, [
+        player.name + "(",
+        m("span.player-score", player.score.toNumber()),
+        ")"
+      ])
+    );
+  };
+
+  let list = [m("div.left-list", m(l, half.map(make_player_link)))];
+  if (more.length > 0) {
+    list.push(
+      m(
+        "div.right-list",
+        m(l, { start: half.length }, more.map(make_player_link))
+      )
+    );
+  }
+  return list;
+}
+
 // these are global because we want to come back to /play remembering previous settings.
 var inited = null;
 var player_name = null;
 var player_score = null;
 
+function Tips() {
+  let next = 0;
+  let tips = [
+    [], // top player
+    [], // recent player
+    //[], // available player
+    [
+      m("h4", "Rules:"),
+      m("ol", [
+        m("li", "1st player joining a game plays black."),
+        m("li", "2nd player joining a game plays white."),
+        m("li", "No password required, login is per-browser."),
+        m("li", "Player name is only entered once and can't be changed.")
+      ])
+    ],
+    [
+      m("h4", "To invite a friend:"),
+      m("ol", [
+        m("li", ["Enter both of your names and click ", m("i", "Play!")]),
+        m("li", "Once you are in game, share the URL with your friend.")
+      ])
+    ],
+    [
+      m("h4", "To wait for a game:"),
+      m("ol", [
+        m("li", ["Leave the opponent name empty and click ", m("i", "Play!")]),
+        m("li", "Once you are in game, share the URL with others."),
+        m("li", "First person visiting the URL will join your game.")
+      ])
+    ],
+    [
+      m("h4", "How the score works:"),
+      m("ol", [
+        m("li", "Get points by winning a game."),
+        m("li", "Get more by winning from a higher-score player."),
+        m("li", "Have fun!")
+      ])
+    ]
+  ];
+  var top_players = [];
+  var recent_players = [];
+  var available_players = [];
+
+  let refresh_list = function() {
+    reversi
+      .list()
+      .then(function(res) {
+        //console.log("refresh_list");
+        //console.log(res);
+        top_players = res.top;
+        recent_players = res.recent;
+        available_players = res.available;
+      })
+      .catch(function(err) {
+        console.log("Refresh list error, ignore");
+        console.log(e);
+      });
+  };
+
+  return {
+    onbeforeremove: function(vnode) {
+      vnode.dom.classList.add("exit");
+      do {
+        next = (next + 1) % tips.length;
+      } while (tips[next] == null);
+      refresh_list();
+      return new Promise(function(resolve) {
+        vnode.dom.addEventListener("animationend", resolve);
+      });
+    },
+    view: function() {
+      tips[0] =
+        top_players.length > 0
+          ? [m("h4", "Top players"), make_player_list(top_players, true)]
+          : null;
+      tips[1] =
+        recent_players.length > 0
+          ? [
+              m("h4", "Recently played"),
+              make_player_list(recent_players, false)
+            ]
+          : null;
+      /* Available players is inaccurate before canister has access to time.
+      tips[2] =
+        available_players.length > 0
+          ? [
+              m("h4", "Available players"),
+              make_player_list(available_players, false)
+            ]
+          : null;
+	  */
+
+      return m(".fancy", m("div.tip", tips[next]));
+    }
+  };
+}
+
 // Play screen UI component.
 function Play() {
+  var tips_on = false;
   var opponent_name = null;
   var set_player_info = function(info) {
     player_name = info["name"];
     player_score = info["score"].toNumber();
   };
+  var set_tips_on = function() {
+    tips_on = true;
+    m.redraw();
+    clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(set_tips_off, 5000);
+  };
+  var set_tips_off = function() {
+    tips_on = false;
+    m.redraw();
+    clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(set_tips_on, 1000);
+  };
+
   var init_play = function() {
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
     }
+    set_tips_off();
     reversi
       .register("")
-      .then(res => {
+      .then(function(res) {
         inited = true;
-        console.log("init_play: " + JSON.stringify(res));
+        console.log("Registered: " + JSON.stringify(res));
         if ("ok" in res) {
           set_player_info(res["ok"]);
         }
         m.redraw();
       })
       .catch(function(err) {
-        console.log("register error");
+        console.log("Register error");
         console.log(err);
         error_code = "RegisterError";
         m.route.set("/play");
@@ -674,10 +827,10 @@ function Play() {
     }
     // clear error code on submit
     error_code = null;
-    console.log(player_name + " against " + opponent_name);
+    console.log("Play " + player_name + " against " + opponent_name);
     reversi
       .register(player_name)
-      .then(res => {
+      .then(function(res) {
         if ("ok" in res) {
           set_player_info(res["ok"]);
           m.route.set("/game/:player/:against", {
@@ -690,20 +843,26 @@ function Play() {
         }
       })
       .catch(function(err) {
-        console.log("register error");
+        console.log("Register error");
         console.log(err);
         error_code = "RegisterError";
         m.route.set("/play");
       });
   };
+  let tips = Tips();
   return {
     oninit: init_play,
+    onremove: function(vnode) {
+      clearTimeout(refreshTimeout);
+    },
     view: function(vnode) {
       if (vnode.attrs.player && player_name == null) {
         player_name = vnode.attrs.player;
+        vnode.attrs.player = null;
       }
-      if (vnode.attrs.opponent && opponent_name == null) {
+      if (vnode.attrs.opponent) {
         opponent_name = vnode.attrs.opponent;
+        vnode.attrs.opponent = null;
       }
       if (inited) {
         var title = "Welcome to Reversi!";
@@ -724,9 +883,10 @@ function Play() {
           title = "Welcome back to Reversi, " + player_name + "!";
           score = m("h2", [
             m("span", "Your Score: "),
-            m("span.total_score", player_score)
+            m("span.player-score", player_score)
           ]);
         }
+        form.push(m("label.label", "Choose an opponent"));
         form.push(
           m("input.input[placeholder=Opponent name]", {
             oninput: function(e) {
@@ -736,25 +896,26 @@ function Play() {
           })
         );
         form.push(m("button.button[type=submit]", "Play!"));
-        return m(
-          "div.centered",
-          m("div.cover", [
-            m("h1", title),
-            score,
-            m("div.error", error_msg),
-            m("form", { onsubmit: play }, form),
-            m("div.tip", [
-              "To invite a friend:",
-              m("ol", [
-                m("li", [
-                  "Enter both of your names and click ",
-                  m("i", "Play!")
-                ]),
-                m("li", "Once you are in game, share the URL with your friend.")
-              ])
+        return [
+          m(
+            "div.centered",
+            m("div.cover", [
+              m("h1", title),
+              score,
+              m("div.error", error_msg),
+              m("div", m("form", { onsubmit: play }, form)),
+              m("div.tips", tips_on ? m(tips) : null)
             ])
-          ])
-        );
+          ),
+          m(
+            "div.bottom",
+            m(
+              "a",
+              { href: "https://github.com/ninegua/reversi" },
+              "Source Code"
+            )
+          )
+        ];
       }
     }
   };
