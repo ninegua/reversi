@@ -66,7 +66,7 @@ type GameState = {
   var white: (?PlayerId, PlayerName);
   var next: Game.Color;
   var result: ?Game.ColorCount;
-}; 
+};
 
 type GameView = {
   dimension: Nat;
@@ -84,6 +84,7 @@ type StartError = {
   #InvalidOpponentName;
   #PlayerNotFound;
   #NoSelfGame;
+  #OpponentInAnotherGame;
 };
 
 // Convert text to lower case
@@ -93,7 +94,7 @@ func to_lowercase(name: Text) : Text {
     let ch = if ('A' <= c and c <= 'Z') { Prim.word32ToChar(Prim.charToWord32(c) + 32) } else { c };
     str := str # Prim.charToText(ch);
   };
-  str 
+  str
 };
 
 // Text equality check ignoring cases.
@@ -113,8 +114,8 @@ func valid_name(name: Text): Bool {
   };
   for (i in Iter.range(0, str.size() - 1)) {
     let c = str[i];
-    if (not ((c >= 'a' and c <= 'z') or 
-             (c >= 'A' and c <= 'Z') or 
+    if (not ((c >= 'a' and c <= 'z') or
+             (c >= 'A' and c <= 'Z') or
              (c >= '0' and c <= '9') or
              (c == '_' or c == '-'))) {
        return false;
@@ -191,7 +192,7 @@ func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score
     }
   };
   // skip if new score is 0
-  if (score_ == 0) { return; }; 
+  if (score_ == 0) { return; };
   // otherwise trying to insert.
   for (i in Iter.range(0, N - 1)) {
     switch (top_players[i]) {
@@ -287,10 +288,10 @@ actor {
     );
   };
 
-  let top_players : [var ?PlayerView] = 
+  let top_players : [var ?PlayerView] =
     init_top_players(
       Iter.map<(PlayerId, PlayerState), PlayerState>(
-        accounts.vals(), 
+        accounts.vals(),
         func (x) { x.1 }
     ));
   let recent_players : [var PlayerName] = Array.init<PlayerName>(10, "");
@@ -308,7 +309,7 @@ actor {
     switch (lookup_id_by_name(name)) {
       case null { null };
       case (?id) { lookup_player_by_id(id) };
-    } 
+    }
   };
 
   func insert_new_player(id: PlayerId, name_: PlayerName) : PlayerState {
@@ -371,7 +372,7 @@ actor {
       let game = games.get(i);
       let (black_id, black_name) = game.black;
       let (white_id, white_name) = game.white;
-      if ((eq_nocase(white_name, player_name) and Option.isSome(white_id)) or 
+      if ((eq_nocase(white_name, player_name) and Option.isSome(white_id)) or
           (eq_nocase(black_name, player_name) and Option.isSome(black_id))) {
         return ?game;
       }
@@ -385,7 +386,7 @@ actor {
       if (same_game(game, games.get(i))) {
         for (j in Iter.range(i + 1, games.size()-1)) {
           let game = games.get(j);
-          games.put(j-1, game); 
+          games.put(j-1, game);
         };
         let _ = games.removeLast();
       }
@@ -400,11 +401,11 @@ actor {
     if (Option.isSome(game.white.0)) {
       update_available_players(available_players, game.white.1, true);
     };
-    game_state_to_view(game)     
+    game_state_to_view(game)
   };
 
   // Start a game with opponent. Rules are:
-  // 1. A player can only start one game at any time. 
+  // 1. A player can only start one game at any time.
   // 2. 1st player to start a game will play black, 2nd player joining will play white.
   // 3. 2nd player to start will join an existing game if the opponent has already
   //    started a game waiting for this player.
@@ -426,7 +427,12 @@ actor {
           switch (lookup_game_by_name(player.name)) {
             case (?game) {
               // We have a game
-              if (Option.isNull(game.result)) {
+              if (eq_nocase(game.black.1, player.name) and Option.isNull(game.white.0)) {
+                // Opponent has not arrived or already left, cancel it
+                game.white := (null, "");
+                reset_game(game);
+                return #ok(proceed(game));
+              } else if (Option.isNull(game.result)) {
                 // Still live? Continue
                 return #ok(proceed(game));
               } else {
@@ -442,47 +448,30 @@ actor {
         };
 
         switch (lookup_game_by_name(player.name), lookup_game_by_name(opponent_name)) {
-          // Both are in game
-          case (?game_A, ?game_B) {
-            if (same_game(game_A, game_B)) {
-              if (Option.isSome(game_A.result)) {
-                // Reset the game if it was already finished
-                reset_game(game_A);
+          // opponent already in a game
+          case (game, ?game_B) {
+            switch (game) {
+              case (?game_A) {
+                if (not (same_game(game_A, game_B))) {
+                  // must quit from existing game if it is not the same as game_B
+                  if (eq_nocase(game_A.black.1, player.name)) {
+                    delete_game(game_A);
+                  } else {
+                    game_A.white := (null, "");
+                  }
+                }
               };
-              #ok(proceed(game_A))
-            } else if (eq_nocase(player.name, game_B.white.1)) {
-              // opponent is expecting player, quit from game_A
-              if (eq_nocase(player.name, game_A.black.1)) {
-                game_A.black := (null, "");
-              } else {
-                game_A.white := (null, "");
-              };
+              case null {}
+            };
+            // check if opponent is expecting no player or this player
+            if (eq_nocase(game_B.black.1, player.name)) {
+              game_B.black := (?player_id, player.name);
+              #ok(proceed(game_B))
+            } else if (eq_nocase(game_B.white.1, player.name) or game_B.white.1 == "") {
               game_B.white := (?player_id, player.name);
               #ok(proceed(game_B))
-            } else if (eq_nocase(player.name, game_A.black.1)) {
-              // opponent is not expecting player, leave game_B alone
-              // if player is black in game_A, we have changed the opponent, reset it
-              game_A.white := (null, opponent_name);
-              reset_game(game_A);
-              #ok(proceed(game_A))
             } else {
-              // If player is white in game_A, quit it, and start a new one
-              game_A.white := (null, "");
-              #ok(proceed(add_game(player_id, player.name, opponent_name)))
-            }
-          };
-          // opponent already in a game
-          case (null, ?game) {
-            // check if opponent is expecting no player or this player
-            if (eq_nocase(game.black.1, player.name)) {
-              game.black := (?player_id, player.name);
-              #ok(proceed(game))
-            } else if (eq_nocase(game.white.1, player.name) or game.white.1 == "") {
-              game.white := (?player_id, player.name);
-              #ok(proceed(game))
-            } else {
-              // start a new game
-              #ok(proceed(add_game(player_id, player.name, opponent_name)))
+              #err(#OpponentInAnotherGame);
             }
           };
           // this player already in a game
@@ -497,7 +486,7 @@ actor {
               reset_game(game);
               #ok(proceed(game))
             }
-          };    
+          };
           // no existing game, start a new one
           case (null, null) {
             #ok(proceed(add_game(player_id, player.name, opponent_name)));
@@ -543,7 +532,7 @@ actor {
           }
         };
         let bonus = 2 * N * N - result.black - result.white;
-        let set_score = 
+        let set_score =
           func (player: PlayerState, points: Int, player_level: Nat, opponent_level: Nat) {
             let delta = compute_score(points, player_level, opponent_level);
             if (player.score + delta < 0) {
@@ -569,7 +558,7 @@ actor {
           Option.isSome,
           Array.tabulate<?PlayerView>(count, func(i) {
             Option.map<PlayerState, PlayerView>(
-              lookup_player_by_name(arr[i]), 
+              lookup_player_by_name(arr[i]),
               player_state_to_view)
           })),
         func(x) { Option.unwrap<PlayerView>(x) } )
@@ -591,7 +580,7 @@ actor {
       available = names_to_view(available_players, n_available);
     }
   };
- 
+
   // External interface to view the state of an on-going game.
   public shared query(msg) func view() : async ?GameView {
       let player_id = msg.caller;
@@ -602,8 +591,8 @@ actor {
   // It returns "OK" when the move is valid.
   public shared(msg) func move(row_: Int, col_: Int) : async MoveResult {
     // The casting is necessary because dfx has yet to support Nat on commandline
-    let row : Nat = Int.abs(row_); 
-    let col : Nat = Int.abs(col_); 
+    let row : Nat = Int.abs(row_);
+    let col : Nat = Int.abs(col_);
     let player_id = msg.caller;
     switch (lookup_game_by_id(player_id)) {
       case null { #GameNotFound };
@@ -614,7 +603,7 @@ actor {
             if (not Game.match_color(?game.next, ?color)) {
               return (#IllegalColor);
             };
-            
+
             switch (Game.place(game.dimension, game.board, color, row, col)) {
               case (#InvalidCoordinate) {
                 #InvalidCoordinate

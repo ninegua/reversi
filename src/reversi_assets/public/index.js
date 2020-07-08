@@ -443,17 +443,21 @@ function flipColor(color) {
   return "black" in color ? white : black;
 }
 
-function get_error_message(err) {
+function get_error_message(err, arg) {
   let msgs = {
     NoSelfGame: "Please input an opponent other than yourself.",
     InvalidName:
       "Name must be alphanumerical with no space, and between 3 and 10 characters long.",
     InvalidOpponentName:
       "Opponent name must be alphanumerical with no space, and between 3 and 10 characters long.",
-    NameAlreadyExists: "Name already taken by another player.",
-    GameCancelled: "Game was cancelled because the opponent has left.",
+    NameAlreadyExists: "Name '" + (arg ? arg : "") + "' was already taken.",
+    GameCancelled: "Game was cancelled because opponent has left.",
     StartGameError: "Game failed to start. Please try again later.",
-    RegisterError: "Game failed to register. Please try again later."
+    OpponentInAnotherGame:
+      (arg ? arg : "Opponent") +
+      " is playing another game. Please try again later.",
+    RegisterError: "Game failed to register. Please try again later.",
+    PlayerNotFound: "Player has not registered."
   };
   let msg = msgs[err];
   return msg ? msg : "An internal error has occurred.";
@@ -464,6 +468,7 @@ var refreshTimeout = null;
 
 // The error code is global to avoid showing up in the URL
 var error_code = null;
+var error_arg = null;
 
 // Main game UI component.
 function Game() {
@@ -486,6 +491,7 @@ function Game() {
           let black_name = game ? game["black"][1] : null;
           let white_name = game ? game["white"][1] : null;
           game = res[0];
+		  console.log(game);
           if (game.moves.length > last_move_length) {
             // handle new moves
             let opponent_piece = "white" in player_color ? "*" : "O";
@@ -521,8 +527,18 @@ function Game() {
             black_name != game["black"][1] ||
             white_name != game["white"][1]
           ) {
-            // redraw when player name has changed
-            m.redraw();
+            if (game["white"][1] == "" || game["black"][1] == "") {
+              // player left, we'll terminate
+              error_code = "GameCancelled";
+              m.route.set("/play");
+              return;
+            } else {
+              // reset game when player name has changed
+              const N = game.dimension.toNumber();
+              var board = replay(N, game.moves);
+              boards = [{ row: -1, col: -1, board: board }];
+              m.redraw();
+            }
           }
           refreshTimeout = setTimeout(refresh, 1000);
         }
@@ -534,6 +550,7 @@ function Game() {
       });
   };
   var start = function(player, opponent) {
+	clearTimeout(refreshTimeout);
     if (putsound === null) {
       putsound = {}; // avoid loading it twice
       reversi_assets
@@ -572,6 +589,9 @@ function Game() {
           m.route.set("/play", { player: opponent, opponent: player });
         } else {
           error_code = Object.keys(res["err"])[0];
+          if (error_code == "OpponentInAnotherGame") {
+            error_arg = opponent;
+          }
           m.route.set("/play");
         }
       })
@@ -682,16 +702,12 @@ var player_score = null;
 function Tips() {
   let next = 0;
   let tips = [
-    [], // top player
-    [], // recent player
-    //[], // available player
     [
       m("h4", "Rules:"),
       m("ol", [
         m("li", "1st player joining a game plays black."),
         m("li", "2nd player joining a game plays white."),
-        m("li", "No password required, login is per-browser."),
-        m("li", "Player name is only entered once and can't be changed.")
+        m("li", "No password required, login is per-browser.")
       ])
     ],
     [
@@ -705,22 +721,19 @@ function Tips() {
       m("h4", "To wait for a game:"),
       m("ol", [
         m("li", ["Leave the opponent name empty and click ", m("i", "Play!")]),
-        m("li", "Once you are in game, share the URL with others."),
-        m("li", "First person visiting the URL will join your game.")
+        m("li", "Once you are in game, share the URL."),
+        m("li", "First person clicking the URL will join your game.")
       ])
     ],
     [
       m("h4", "How the score works:"),
       m("ol", [
         m("li", "Get points by winning a game."),
-        m("li", "Get more by winning from a higher-score player."),
-        m("li", "Have fun!")
+        m("li", "Get more by beating higher-score players!")
       ])
     ]
   ];
-  var top_players = [];
-  var recent_players = [];
-  var available_players = [];
+  var charts = [];
 
   let refresh_list = function() {
     reversi
@@ -728,9 +741,30 @@ function Tips() {
       .then(function(res) {
         //console.log("refresh_list");
         //console.log(res);
-        top_players = res.top;
-        recent_players = res.recent;
-        available_players = res.available;
+        let top_players = res.top;
+        let recent_players = res.recent;
+        let available_players = res.available;
+        charts = [];
+        if (top_players.length > 0) {
+          charts.push([
+            m("h4", "Top players"),
+            make_player_list(top_players, true)
+          ]);
+        }
+        if (recent_players.length > 0) {
+          charts.push([
+            m("h4", "Recently played"),
+            make_player_list(recent_players, false)
+          ]);
+        }
+        // Available players is inaccurate before canister has access to time
+
+        if (false && available_players.length > 0) {
+          charts.push([
+            m("h4", "Available players"),
+            make_player_list(available_players, false)
+          ]);
+        }
       })
       .catch(function(err) {
         console.log("Refresh list error, ignore");
@@ -741,37 +775,22 @@ function Tips() {
   return {
     onbeforeremove: function(vnode) {
       vnode.dom.classList.add("exit");
-      do {
-        next = (next + 1) % tips.length;
-      } while (tips[next] == null);
       refresh_list();
+      next += 1;
       return new Promise(function(resolve) {
         vnode.dom.addEventListener("animationend", resolve);
       });
     },
     view: function() {
-      tips[0] =
-        top_players.length > 0
-          ? [m("h4", "Top players"), make_player_list(top_players, true)]
-          : null;
-      tips[1] =
-        recent_players.length > 0
-          ? [
-              m("h4", "Recently played"),
-              make_player_list(recent_players, false)
-            ]
-          : null;
-      /* Available players is inaccurate before canister has access to time.
-      tips[2] =
-        available_players.length > 0
-          ? [
-              m("h4", "Available players"),
-              make_player_list(available_players, false)
-            ]
-          : null;
-	  */
-
-      return m(".fancy", m("div.tip", tips[next]));
+      let tip;
+      let chart;
+      if (charts.length == 0) {
+        tip = tips[next % tips.length];
+      } else {
+        tip = tips[(next >> 1) % tips.length];
+        chart = charts[(next >> 1) % charts.length];
+      }
+      return m(".fancy", m("div.tip", next % 2 == 0 ? tip : chart));
     }
   };
 }
@@ -788,7 +807,7 @@ function Play() {
     tips_on = true;
     m.redraw();
     clearTimeout(refreshTimeout);
-    refreshTimeout = setTimeout(set_tips_off, 5000);
+    refreshTimeout = setTimeout(set_tips_off, 6000);
   };
   var set_tips_off = function() {
     tips_on = false;
@@ -827,6 +846,7 @@ function Play() {
     }
     // clear error code on submit
     error_code = null;
+    error_arg = null;
     console.log("Play " + player_name + " against " + opponent_name);
     reversi
       .register(player_name)
@@ -839,6 +859,9 @@ function Play() {
           });
         } else {
           error_code = Object.keys(res["err"])[0];
+          if (error_node == "NameAlreadyExists") {
+            error_arg = player_name;
+          }
           m.route.set("/play");
         }
       })
@@ -868,7 +891,9 @@ function Play() {
         var title = "Welcome to Reversi!";
         var score = m("h2");
         var form = [];
-        var error_msg = error_code ? get_error_message(error_code) : "";
+        var error_msg = error_code
+          ? get_error_message(error_code, error_arg)
+          : "";
 
         if (player_score === null) {
           form.push(
@@ -897,16 +922,13 @@ function Play() {
         );
         form.push(m("button.button[type=submit]", "Play!"));
         return [
-          m(
-            "div.centered",
-            m("div.cover", [
-              m("h1", title),
-              score,
-              m("div.error", error_msg),
-              m("div", m("form", { onsubmit: play }, form)),
-              m("div.tips", tips_on ? m(tips) : null)
-            ])
-          ),
+          m("div.top-centered", [
+            m("h1", title),
+            score,
+            m("div.error", error_msg),
+            m("div", m("form", { onsubmit: play }, form))
+          ]),
+          m("div.bottom-centered", m("div.tips", tips_on ? m(tips) : null)),
           m(
             "div.bottom",
             m(
