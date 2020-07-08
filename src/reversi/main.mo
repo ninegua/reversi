@@ -180,8 +180,8 @@ func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score
         break outer;
       };
       case (?player) {
-		if (player.name == name_) {
-		  for (j in Iter.range(i, N -2)) {
+        if (player.name == name_) {
+          for (j in Iter.range(i, N -2)) {
             top_players[j] := top_players[j + 1];
           };
           top_players[N - 1] := null;
@@ -282,7 +282,7 @@ actor {
     );
     name_map = HashMap.fromIter<PlayerName, PlayerId>(
       Iter.map<(PlayerId, PlayerState), (PlayerName, PlayerId)>(
-        accounts.vals(), func ((id, state)) { (state.name, id) }
+        accounts.vals(), func ((id, state)) { (to_lowercase(state.name), id) }
       ), accounts.size(), func (x, y) { x == y }, Text.hash
     );
   };
