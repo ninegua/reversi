@@ -3,7 +3,7 @@
 This game runs on [Internet Computer] as a canister.
 Users can communicate with this canister by sending messages, which are just asynchronous function calls.
 
-![Reversi Screenshots](./screenshots.png)
+![Reversi Screenshots](./docs/screenshots.png)
 
 ## Backend
 

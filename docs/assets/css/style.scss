@@ -1,0 +1,71 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+header > h1 {
+  overflow: visible;
+  white-space: normal;
+}
+
+nav {
+  text-align: left;
+}
+
+@media print, screen and (min-width: 1060px) {
+
+  .wrapper {
+    width: 800px;
+  }
+  
+  section {
+    width: 740px;
+  }
+  
+  nav {
+    margin-left: -650px;
+  }
+  
+  footer {
+    margin-left: -600px;
+  }
+
+}
+
+body {
+  font:16px/22px 'Quattrocento Sans', "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:400italic);
+.main-content blockquote{
+  font-size: 1.4em;
+  font-weight: bold;
+  width: 75%;
+  margin: 50px auto;
+  font-family: Open Sans;
+  font-style: italic;
+  color: #555555;
+  padding: 1.2em 30px 0.8em 75px;
+  border-left: 8px solid #78C0A8 ;
+  line-height: 1.6;
+  position: relative;
+  background: #EDEDED;
+}
+
+.main-content blockquote::before{
+  font-family: Arial;
+  content: "\201C";
+  color: #78C0A8;
+  font-size: 4em;
+  position: absolute;
+  left: 10px;
+  top: -10px;
+}
+
+.main-content blockquote::after{
+  content: '';
+}
+
+dd {
+  margin-left: 0;
+}
