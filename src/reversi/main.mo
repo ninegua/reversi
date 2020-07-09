@@ -395,6 +395,9 @@ actor {
 
   // proceed with a game and update player status
   func proceed(game: GameState) : GameView {
+    if (Option.isSome(game.result)) {
+      reset_game(game);
+    };
     if (Option.isSome(game.black.0)) {
       update_available_players(available_players, game.black.1, true);
     };
