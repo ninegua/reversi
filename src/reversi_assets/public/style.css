@@ -15,6 +15,10 @@ body {
   font-style: normal;
 }
 
+.logo {
+  height: 4em;
+}
+
 .top-centered {
   position: fixed;
   top: 60%;

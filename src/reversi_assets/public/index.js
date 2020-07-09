@@ -1,6 +1,7 @@
 import reversi from "ic:canisters/reversi";
 import reversi_assets from "ic:canisters/reversi_assets";
 import "./style.css";
+import logo from "./logo.png";
 
 document.title = "Reversi Game on IC";
 
@@ -226,6 +227,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
   const my_piece = "black" in player_color ? "*" : "O";
   let hintColor = my_piece == "O" ? "#ddd" : "#000";
   let hintOn = same_color(player_color, next_color);
+  let hintStrokeWidth = my_piece == "O" ? 1 : 2;
   for (var row = 0; row < dimension; row++) {
     for (var col = 0; col < dimension; col++) {
       const idx = row * dimension + col;
@@ -259,7 +261,7 @@ function Board(player_color, next_color, game, boards, onClick, onDismiss) {
               r: cellSize * 0.4,
               stroke: hintColor,
               "stroke-dasharray": 4,
-              "stroke-width": 1,
+              "stroke-width": hintStrokeWidth,
               "stroke-opacity": 0.6,
               fill: "none"
             })
@@ -727,7 +729,7 @@ function Tips() {
       m("h4", "To invite anyone:"),
       m("ol", [
         m("li", ["Leave the opponent name empty and click ", m("i", "Play!")]),
-        m("li", "Once you are in game, share the URL with anyone."),
+        m("li", "Once you are in game, share the URL with anyone.")
       ])
     ]
   ];
@@ -926,6 +928,7 @@ function Play() {
         return [
           m("div.top-centered", [
             m("h1", title),
+            m("img.logo", { src: logo }),
             score,
             m("div.error", error_msg),
             m("div", m("form", { onsubmit: play }, form))

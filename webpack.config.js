@@ -52,6 +52,7 @@ function generateWebpackConfigForCanister(name, info) {
       rules: [
 //      { test: /\.(js|ts)x?$/, loader: "ts-loader" },
         { test: /\.css$/, use: ['style-loader','css-loader'] },
+        { test: /\.png$/, use: ['url-loader'] },
       ]
     },
     plugins: [
