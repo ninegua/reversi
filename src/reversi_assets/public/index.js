@@ -705,7 +705,7 @@ function Tips() {
   let tips = [
     [
       m("h4", "How to play:"),
-      m("ol", [
+      m("ul", [
         m("li", "1st player joining a game plays black."),
         m("li", "2nd player joining a game plays white."),
         m("li", "No password required, login is per-browser.")
