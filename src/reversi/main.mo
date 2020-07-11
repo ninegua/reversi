@@ -624,6 +624,7 @@ actor {
                 #Pass
               };
               case (#GameOver(result)) {
+                game.moves.add(Nat8.fromNat(row * game.dimension + col));
                 game.result := ?result;
                 update_score(game.dimension, game.black.0, game.white.0, result);
                 #GameOver(result)
