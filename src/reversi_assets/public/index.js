@@ -670,7 +670,7 @@ function Game() {
 
 function make_player_list(players, ordered) {
   let half = players.slice(0, 4);
-  let more = players.slice(5, 8);
+  let more = players.slice(4, 7);
   let l = ordered ? "ol" : "ul";
   let make_player_link = function(player) {
     return m(
@@ -688,7 +688,7 @@ function make_player_list(players, ordered) {
     list.push(
       m(
         "div.right-list",
-        m(l, { start: half.length }, more.map(make_player_link))
+        m(l, { start: half.length + 1 }, more.map(make_player_link))
       )
     );
   }
