@@ -859,7 +859,7 @@ function Play() {
           });
         } else {
           error_code = Object.keys(res["err"])[0];
-          if (error_node == "NameAlreadyExists") {
+          if (error_code == "NameAlreadyExists") {
             error_arg = player_name;
           }
           m.route.set("/play");
