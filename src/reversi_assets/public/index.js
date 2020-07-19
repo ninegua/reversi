@@ -2,6 +2,7 @@ import reversi from "ic:canisters/reversi";
 import reversi_assets from "ic:canisters/reversi_assets";
 import "./style.css";
 import logo from "./logo.png";
+import m from "mithril";
 
 document.title = "Reversi Game on IC";
 
@@ -948,7 +949,6 @@ function Play() {
   };
 }
 
-var m = require("mithril");
 m.route(document.body, "/play", {
   "/play": Play,
   "/game/:player/:against": Game
