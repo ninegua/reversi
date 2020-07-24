@@ -7,7 +7,7 @@
     "build": "webpack"
   },
   "devDependencies": {
-    "@dfinity/agent": "/home/suede/.cache/dfinity/versions/0.5.10/js-user-library",
+    "@dfinity/agent": "0.6.0",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "css-loader": "^3.6.0",

@@ -1,5 +1,5 @@
 import Array "mo:base/Array";
-import Buf "mo:base/Buf";
+import Buffer "mo:base/Buffer";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Int "mo:base/Int";
@@ -56,7 +56,7 @@ type RegistrationError = {
 };
 
 // History of valid moves. The use of Nat8 here implies the max dimension is 8.
-type Moves = Buf.Buf<Nat8>;
+type Moves = Buffer.Buffer<Nat8>;
 
 type GameState = {
   dimension: Nat;
@@ -78,7 +78,7 @@ type GameView = {
   result: ?Game.ColorCount;
 };
 
-type Games = Buf.Buf<GameState>;
+type Games = Buffer.Buffer<GameState>;
 
 type StartError = {
   #InvalidOpponentName;
@@ -345,7 +345,7 @@ actor {
   };
 
   // Game database
-  let games : Games = Buf.Buf<GameState>(0);
+  let games : Games = Buffer.Buffer<GameState>(0);
 
   func lookup_game_by_id(player_id: PlayerId): ?GameState {
     for (i in Iter.range(0, games.size()-1)) {
@@ -506,7 +506,7 @@ actor {
     let game = {
       dimension = N;
       board = Array.init<?Game.Color>(N * N, Game.empty_piece);
-      moves = Buf.Buf<Nat8>(N * N);
+      moves = Buffer.Buffer<Nat8>(N * N);
       var black : (?PlayerId, PlayerName) = (?black_id, black_name);
       var white : (?PlayerId, PlayerName) = (null, white_name);
       var next : Game.Color = #white;
@@ -558,12 +558,12 @@ actor {
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
       Array.map<?PlayerView, PlayerView>(
         Array.filter<?PlayerView>(
-          Option.isSome,
           Array.tabulate<?PlayerView>(count, func(i) {
             Option.map<PlayerState, PlayerView>(
               lookup_player_by_name(arr[i]),
               player_state_to_view)
-          })),
+          }),
+          Option.isSome),
         func(x) { Option.unwrap<PlayerView>(x) } )
     };
     let count_until = func<A>(arr: [var A], f: A -> Bool) : Nat {

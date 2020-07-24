@@ -6,14 +6,13 @@ JS_SRC:=src/$(PROJECT)_assets/public/index.js src/$(PROJECT)_assets/public/style
 JS_CFG:=package-lock.json webpack.config.js
 DFX_CFG:=dfx.json
 
-OBJ_DIR:=canisters.$(PROVIDER)
+OBJ_DIR:=.dfx/$(PROVIDER)/canisters
 
-CANISTER_TARGET:=$(OBJ_DIR)/$(PROJECT)/main.wasm
+CANISTER_IDS:=.dfx/$(PROVIDER)/canister_ids.json
+CANISTER_TARGET:=$(OBJ_DIR)/$(PROJECT)/$(PROJECT).wasm
 ASSETS_TARGET:=$(OBJ_DIR)/$(PROJECT)_assets/$(PROJECT)_assets.wasm
 JS_TARGET:=$(OBJ_DIR)/$(PROJECT)_assets/assets/index.js
-MANIFEST:=$(OBJ_DIR)/canister_manifest.json
 
-# all: $(CANISTER_TARGET) $(JS_TARGET) $(ASSETS_TARGET) node_modules
 help:
 	@echo 'USAGE: make [PROVIDER=...] [install|reinstall|upgrade|clean|canister|assets]'
 	@echo
@@ -27,15 +26,7 @@ help:
 	@echo 'The PROVIDER variable is optional. It corresponds to "networks" configuration in'
 	@echo 'the dfx.json file. Default is "local".'
 
-.PHONY: help all canisters
-
-canisters.$(PROVIDER):
-	mkdir canisters.$(PROVIDER)
-
-canisters: canisters.$(PROVIDER)
-	test $$(readlink canisters) = canisters.$(PROVIDER) || $$(rm -f canisters && ln -s canisters.$(PROVIDER) canisters)
-
-.PHONY: canister assets
+.PHONY: help
 
 canister: $(CANISTER_TARGET)
 
@@ -43,10 +34,10 @@ assets: $(ASSETS_TARGET)
 
 .PHONY: reinstall install install-canister install-assets
 
-install-canister: $(MANIFEST) $(CANISTER_TARGET) $(DFX_CFG) canisters
+install-canister: $(CANISTER_IDS) $(CANISTER_TARGET) $(DFX_CFG)
 	dfx canister --network $(PROVIDER) install --mode $(MODE) $(PROJECT)
 
-install-assets: $(JS_TARGET) $(ASSETS_TARGET) $(DFX_CFG) canisters
+install-assets: $(JS_TARGET) $(ASSETS_TARGET) $(DFX_CFG)
 	dfx canister --network $(PROVIDER) install --mode $(MODE) $(PROJECT)_assets
 
 install: install-assets install-canister
@@ -68,10 +59,10 @@ upgrade-assets:
 .PHONY: clean clean-state clean-all
 
 clean: 
-	rm -rf $(OBJ_DIR)
+	rm -rf .dfx/local/$(PROVIDER)
 
 clean-state:
-	rm -rf .dfx
+	rm -rf .dfx/state
 
 cleanall: clean clean-state
 
@@ -80,11 +71,11 @@ cleanall: clean clean-state
 node_modules package-lock.json : package.json
 	npm install
 
-$(MANIFEST): $(DFX_CFG) canisters
+$(CANISTER_IDS): $(DFX_CFG)
 	dfx canister --network $(PROVIDER) create --all
 
-$(CANISTER_TARGET): $(MANIFEST) $(MO_SRC) $(DFX_CFG)
-	dfx build --network $(PROVIDER) --skip-frontend --skip-manifest
+$(CANISTER_TARGET): $(CANISTER_IDS) $(MO_SRC) $(DFX_CFG)
+	dfx build --network $(PROVIDER) --skip-frontend
 
-$(ASSETS_TARGET) $(JS_TARGET) : $(MANIFEST) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(DFX_CFG) node_modules
+$(ASSETS_TARGET) $(JS_TARGET) : $(CANISTER_IDS) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(DFX_CFG) node_modules
 	dfx build --network $(PROVIDER)
