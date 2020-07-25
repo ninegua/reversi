@@ -1,5 +1,7 @@
 # Multi-Player Reversi Game on Internet Computer
 
+**[Read about how the game was made!](https://ninegua.github.io/reversi)**
+
 This game runs on [Internet Computer] as a canister.
 Users can communicate with this canister by sending messages, which are just asynchronous function calls.
 
@@ -42,9 +44,15 @@ echo "http://localhost:8000/?canisterId=$(dfx canister id reversi_assets)"
 
 The last command prints a URL, load it in a browser, and enjoy!
 
+## License
+
+All original code is released under MIT license.
+The game UI also uses a free font [Akbar-Plain] made by Jon Bernhardt.
+
 [DFINITY]: https://dfinity.org/
 [DFINITY SDK]: https://sdk.dfinity.org/docs/
 [Internet Computer]: https://dfinity.org/
 [Motoko]: https://dfinity.org/
 [Mithril]: https://mithril.js.org/
 [Node.js]: https://nodejs.org/
+[Akbar-Plain]: https://www.wobblymusic.com/groening/akbar.html
