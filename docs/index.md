@@ -214,7 +214,7 @@ DFINITY SDK provides a way to directly load an application's frontend in browser
 It is not the same as a plain HTML page served from web servers, however; communication with backend canisters is via remote function calls, which in the case of a browser is overlaid on top of HTTP.
 This is transparently handled by a [JS user library](https://www.npmjs.com/package/@dfinity/agent), so a JS programs only has to import a canister as if it is a JS object, and will be able to call its public functions as if they are regular async JS functions of the object.
 The [DFINITY SDK] has a set of tutorials on how to setup a JS frontend, so I won't go into the details here.
-Behind the scene, the `dfx` command from the SDK uses [Webpack] to package resources including JS, CSS, image, and other files you may have.
+Behind the scene, the *dfx* command from the SDK uses [Webpack] to package resources including JS, CSS, image, and other files you may have.
 You can also combine your favorite JS framework such as [React], [AngularJS], [Vue.js], etc. with the DFINITY user library to develop a JS frontend for use in browser or in a mobile app.
 
 ## Main UI components
@@ -438,6 +438,8 @@ m("animate", {
 })
 ```
 
+The explanation is as follows:
+
 - *begin* is set to *indefinite* so that the animation can be manually controlled/started.
 - *fill* is set to *freeze* to mean that after the animation finishes, its ending state will stay.
 - *values* is set to 4 values, where first two are repeated as a trick to start animation after 0.1s (1/4 of *dur*) delay. This is because *begin* was already set to *indefinite*.
@@ -456,7 +458,30 @@ setTimeout(function() {
 
 The above says any *animate* elements with an id not starting with "dot" will be started now.
 
-# Take Away
+# Development workflow
+
+I developed this game on Linux.
+Initial setup is just to install [DFINITY SDK], and follow its instructions to create a project.
+Later I find it tedious to remember all *dfx* command lines, so I made a [Makefile](https://github.com/ninegua/reversi/blob/master/Makefile) to help.
+
+Debugging and testing was mostly done in browser, so lots of *console.log()*.
+There is actually a way to [write unit tests in Motoko](https://github.com/kritzcreek/motoko-matchers), but I only learned it after I wrote the game.
+Initially I also developed a terminal based frontend just using *dfx* and shell script.
+I think it helped to speed up the debugging without having to go through browsers.
+But of course unit testing is a better way to ensure correctness.
+[Motoko] also offers a REPL, but I've not tried it myself.
+
+To actually get the game to run on IC, there is now a [Tungsten network] opened up to developers.
+However, non-developers cannot easily access applications on the network because it is not yet public.
+I hosted it myself using *dfx* and *nginx* as a reverse proxy so that I can invite friends to play.
+
+## Epilogue
+
+A link to the actual game is given in the footer of this document for demo purposes, but I do not guarantee its uptime.
+My plan is to deploy it on the public network once IC launches.
+
+Please feel free to visit the [project repository](https://github.com/ninegua/reversi) and submit issues if you have any questions.
+PRs are also welcome!
 
 [Internet Computer]: https://dfinity.org
 [DFINITY]: https://dfinity.org
@@ -481,3 +506,4 @@ The above says any *animate* elements with an id not starting with "dot" will be
 [Candid]: https://github.com/dfinity/candid
 [Candid Spec]: https://github.com/dfinity/candid/blob/master/IDL.md
 [big.js]: https://github.com/MikeMcl/big.js
+[Tungsten network]: https://dfinity.org/tungsten
