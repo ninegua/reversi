@@ -86,19 +86,19 @@ I will not go into the Motoko language itself in this post, and instead I'll dis
 ## Stable variables
 
 [Orthogonal Persistence] (OP) is not a new idea.
-The new generation of computer hardware like [NVRam] has largely removed the barrier of treating all program memory as persistent, and concepts like file system are not essential to a program any more.
-However, one challenge often mentioned in OP literatureis about upgrades, i.e., what happens when a new program version changes its data structure or memory layout?
+The new generation of computer hardware like [NVRam] has largely removed the barrier of persisting all program memory, and the access to external storage, such as a file system, becomes optional to a program.
+However, one challenge often mentioned in OP literature is about upgrades, i.e., _what happens when an update has to change a program's data structure or memory layout?_
 
 Motoko answers the question with **Stable variables**.
-They survive through upgrades, which in my case are ideal to hold registered player data.
-In a conventional server side development, player data will have to be stored in files or in databases (which is an essential service of "serverless" platforms).
-Motoko imposes several rules on stable variables, but besides that, they are just like any other variables that store data on heap, and can be used indistinguishably.
+They survive through upgrades, which in my case are ideal to hold player data, because I don't want players to lose their accounts when I update the canister software.
+In a conventional server side development, I will have store player accounts in files or in databases (which is an essential system service of "serverless" platforms).
+Only certain types of variables can be made stable, but besides that, they are just like any other variables that store data on heap, and can be used as such.
 
-That said, there is currently a limitation preventing *HashMaps* from being used for stable variables, so I had to resort to arrays.
+That said, there is currently a limitation preventing *HashMaps* from being used as stable variables, so I had to resort to arrays.
 Here is an example:
 
 ```swift
-// Instead of a list of player, we use HashMap for faster lookup.
+// Instead of a list of player, use HashMap for faster lookup.
 type Players = {
   id_map: HashMap.HashMap<PlayerId, PlayerState>;
   name_map: HashMap.HashMap<PlayerName, PlayerId>;
@@ -109,30 +109,32 @@ actor {
   stable var accounts : [(PlayerId, PlayerState)] = [];
 
   // A more efficient data structure used by the rest of program.
+  // It is initialized on the first canister install or on upgrades.
+  // In other words, it is persisted, but does not survive upgrades.
   let players : Players = {
     id_map   = ... // build HashMap<PlayerId, PlayerState> from accounts
     name_map = ... // build HashMap<PlayerName, PlayerId> from accounts
   };
 
-  // before upgrade, we convert data from players to accounts.
+  // before upgrade, convert data from players to accounts.
   system func preupgrade() {
     accounts := Iter.toArray(players.id_map.entries());
   };
 }
 ```
 
-I hope in a future version of the DFINITY SDK, this limitation can be lifted so I can simply use *stable var players* without going through any conversion.
+I hope in a future version of the [DFINITY SDK], this limitation can be lifted so I can simply use *stable var players* without going through any conversion.
 
 ## User authentication
 
 Every canister as well as every client (e.g., the *dfx* command line, or a browser) is given a **principal ID** that uniquely identifies them (For clients, such IDs are auto-generated from public/private keypairs, and DFINITY JS library manages them in a browser's local storage at the moment).
-Motoko allows an canister to identify callers of "shared" functions and we can use them for authentication puroposes.
+Motoko allows an canister to identify callers of "shared" functions and we can use them for authentication purposes.
 
 For example, I define *register* and *view* functions as follows:
 
 ```swift
-public shared (msg) func register(name: Text): async Result.Result<PlayerView, RegistrationError> {
-  let id = msg.caller;
+public shared (msg) func register(name: Text): async Result<PlayerView, RegistrationError> {
+  let player_id = msg.caller;
   ...
 }
 
@@ -141,77 +143,89 @@ public shared query (msg) func view() : async ?GameView {
   ...
 }
 ```
-The *msg.caller* field returns the principal ID of the caller of an incoming message, which in this case is either *register* or *view*. (*view* is a query call, as marked by the *query* keyword).
+The expression *msg.caller* gives the principal ID of the caller of a message.
+Note that this is different than the caller of a function.
+In Motoko, incoming messages to an actor must be addressed to a *public* accessible function which must have an *async* return type.
+The above code shows two public functions: *register* and *view*, where the latter is a query call, as marked by the *query* keyword.
 
-Being able to access a unique ID of the caller (message sender) feels familiar.
-A close concept is HTTP cookies, except that the underlying system of IC already did the heavy-lifting to make sure principal IDs are cryptographically secure and the user program running on IC can fully trust that their authenticity.
+As we can see, accessing the message caller field must go through a special syntax:
+either *shared (msg)* or *shared query (msg)*, where *msg* is a formal parameter that refers to the incoming message as a whole.
+At the moment the only attribute it has is *caller*.
 
-Although personally I think it is perhaps too powerful to let a program know its caller, and too rigid (e.g. what happens when such IDs have to change?).
-At the moment it does lead to a very simple authentication scheme that application developers can make use of.
+Being able to access a unique ID of the caller (message sender) feels familiar, e.g., HTTP cookies.
+But unlike HTTP, the IC protocol actually makes sure principal IDs are cryptographically secure and the user program running on IC can fully trust their authenticity.
+
+Personally I think it is perhaps too powerful to let a program know its caller, and also too rigid (e.g. what happens when such IDs have to change?).
+But for now it does lead to a very simple authentication scheme that application developers can make use of.
 I hope to see more upcoming development in this area.
 
 ## Concurrency and atomicity
 
-Game clients may send messages to the game server at any time, so it's the server's responsibility to handle concurrency requests properly.
-With a conventional architecture, I will have to build some logic to sequentialize players' moves, usually through a messaging queue or mutex/lock.
-However, with the actor programming model employed by canisters, this is automatically taken care of, and I do not have to write any code for it.
-Messages are just remote function calls, and the canister is guaranteed to process one message at a time.
-This leads to simplified programming logic -- I simply don't worry about concurrency problems.
+Game clients may send messages to the game server at any time, so it's the server's responsibility to handle concurrent requests properly.
+In a conventional architecture, I will have to build some logic to sequentialize players' moves, usually through a messaging queue or a mutex/lock.
 
-Also, because canister state is only persisted after a message is fully processed (function call finishes execution), I do not worry about flushing memory to disk, state corruption, or anything like that.
-It should be noted that this atomicity is per message, which corresponds to a *public* function that is annotated with an *async* return type (as seen above).
-A public function is free to call any other non-async functions, and as long as it completes all execution without error, changed states are persisted (for update calls, more details is given below).
+With the actor programming model employed by canisters, this is automatically taken care of, and I do not have to write any code for it.
+Messages are just remote function calls, and a canister is guaranteed to only process one message at a time.
+This leads to simplified programming logic -- I simply don't worry about functions being called concurrently.
+
+Because canister state is only persisted after a message is fully processed (i.e., a public function call returns), I do not worry about flushing memory to disk, whether an exception can lead to corrupted on-disk state, or anything to do with reliability.
+It should also be noted that the atomicity of persisting state changes is per message.
+A public function is free to call any other non-async functions, and as long as the entire execution finishes without error, changed states are persisted (for update calls, more details is given below).
+Finer granularity can be achieved by making async calls instead of sync calls, which become new messages to be scheduled by the system and not executed immediately.
 
 If I were to build this game with a conventional architecture, I would probably choose an actor framework too, e.g., [Akka] for Java, [Actix] for Rust, and so on.
-Motoko offers native actors, joining the family of actor based programming languages such as [Erlang] and [Pony].
+Motoko offers native actor support, joining the family of actor based programming languages such as [Erlang] and [Pony].
 
 ## Update call vs. Query call
 
 This is a feature that in my opinion really improves the user experience for IC applications.
 It brings them on par with those hosted by conventional cloud platforms (or orders of magnitude faster when compared to other blockchains).
 
-It is also simple to understand and to use: any public function that does not need to change program state can be marked as a "query" call, otherwise it remains as an "update" call by default.
+It is also a simple concept: any public function that does not need to change program state can be marked as a "query" call, otherwise it is regarded as an "update" call by default.
 
-The difference is in both latency and concurrency:
-- A Query call takes milliseconds to complete; an update call usually takes around 2 seconds or more.
-- Query calls can be executed concurrently with great scalability; update calls are sequentialized (based on the actor model) and they offer atomicity guarantees.
+The difference between query and update is in both latency and concurrency:
+- A Query call may take only milliseconds to complete, compared to about 2 seconds for an update call.
+- Query calls can be executed concurrently with good scalability; update calls are sequentialized (based on the actor model) and they offer atomicity guarantees.
 
-As in the above code example, I was able to mark the *view* function as query call because it merely looks up the game that a player is playing and returns its state. 
-In fact, most of the time when we browse the Web, we are doing query calls:
-data is retrieved from servers but not modified on them.
+As in the above code example, I was able to mark the *view* function as query call because it merely looks up and returns the state of the game that a player is playing.
+In fact most of the time when we browse the Web, we are doing query calls:
+data are retrieved from servers but not modified.
 
-On the other hand, I had to leave the *register* function as an update call, because it has to add a new player to the player list on a successful registration.
-Although 2s may still sound like a lot, I'd like to remind people that many operations on the web today actually take more than 2s to complete, e.g., logging into your bank account, or placing a stock purchase order, just to name a few.
+On the other hand, the *register* function above remains as an update call, because it has to add a new player to the player list on a successful registration.
+For many reasons like data consistency, atomicity and reliability, update calls will take longer.
+It is not an inherent problem with IC though, many operations on the web today actually take more than 2 seconds to complete, e.g., making a credit card payment, placing a stock purchase order, or even logging into your bank account, just to name a few.
+I think 2 seconds is at the borderline of a good user experience.
 
-There is but one problem: when a player makes the next move, it has to be an update call too:
+Coming back to the reversi game, when a player makes the next move, it has to be an update call too:
 
 ```swift
 public shared (msg) func move(row: Int, col: Int) : async MoveResult { ...  }
 ```
 
-If the game only refreshes its screen 2s after a player clicked the mouse, it will feel unresponsive and no one will want to play a game that lags this much.
+If the game only refreshes its screen 2s after a player has clicked the mouse (or touched the screen), it will feel unresponsive and no one will want to play a game that lags this much.
 So I had to optimize this part by reacting to user inputs directly on the client side without having to wait for the server to respond.
 This means the frontend UI will have to validate player's move, calculate what pieces would be flipped, and show them on screen immediately.
-It also implies whatever the frontend shows will have to match server's response when it comes, or we risk inconsistency.
+It also implies that whatever the frontend shows to the player will have to match server's response to the same move when it comes back, or we risk inconsistency.
 But again, I believe any reasonable implementation of a multi-player reversi or chess game would do the same, regardless of whether its backend takes 200ms to respond, or 2s.
 
 # Frontend client
 
 DFINITY SDK provides a way to directly load an application's frontend in browsers.
-It is not the same as ordinary HTML pages served from web servers, however; communication with backend canisters is via remote function calls, not HTTP.
-This part is already handled by a [JS user library](https://www.npmjs.com/package/@dfinity/agent), so a JS programs only has to import a canister as if it is a JS object and call its public functions as if they are regular async JS functions of the object.
-The [DFINITY SDK] has a set of tutorials on how to setup JS frontend, so I won't go into the details.
-It uses [Webpack] for packaging resources including JS, CSS, image, and other resources you may have.
-You can also combine your favorite JS framework such as [React], [AngularJS], [Vue.js], or something similar, with the DFINITY user agent library to develop the frontend.
+It is not the same as a plain HTML page served from web servers, however; communication with backend canisters is via remote function calls, which in the case of a browser is overlaid on top of HTTP.
+This is transparently handled by a [JS user library](https://www.npmjs.com/package/@dfinity/agent), so a JS programs only has to import a canister as if it is a JS object, and will be able to call its public functions as if they are regular async JS functions of the object.
+The [DFINITY SDK] has a set of tutorials on how to setup a JS frontend, so I won't go into the details here.
+Behind the scene, the `dfx` command from the SDK uses [Webpack] to package resources including JS, CSS, image, and other files you may have.
+You can also combine your favorite JS framework such as [React], [AngularJS], [Vue.js], etc. with the DFINITY user library to develop a JS frontend for use in browser or in a mobile app.
 
 ## Main UI components
 
-I'm relatively new to frontend development with only some brief experience with [React], but this time I chose to learn to use [Mithril] since I've heard many good things about it, especially its simplicity.
-Also to keep things simple, I went with a design that has only two screens: 
+I'm relatively new to frontend development having only had a brief experience with [React].
+This time I took the liberty to learn [Mithril] since I've heard many good things about it, especially its simplicity.
+Also to keep things simple, I came up with a design that has only two screens: 
 
-1. A *Play* screen that allows players to enter their and opponent names, which leads to the Game screen.
+1. A *Play* screen that allows players to enter their name and opponent's, before entering the Game screen.
    It will also show some tips and instructions, top player charts, recent players, and so on.
-2. A *Game* screen that takes player inputs and communicates with the backend canister to render reversi board with latest state.
+2. A *Game* screen that takes player inputs and communicates with the backend canister to render a reversi board.
    It will also show player scores at the end of game, which then leads player back to the Play screen.
 
 The snippet below shows the skeleton of the game frontend in JS.
@@ -225,7 +239,7 @@ import m from "mithril";
 
 document.title = "Reversi Game on IC";
 
-function Game { ... }
+function Game() { ... }
 
 function Play() { ... }
 
@@ -238,29 +252,27 @@ m.route(document.body, "/play", {
 There are a couple things to note:
 
 - The main backend canister *reversi* is imported just like any other JS library.
-  It can be seen as a proxy that forwards function call to the remote server, receives their replies, and transparently handles necessary authentication, signature signing, data serialization/deserialization, error handling, and so on.
+  It can be seen as a proxy that forwards function call to the remote server, receives their replies, and transparently handles necessary authentication, message signing, data serialization/deserialization, error propagation, and so on.
 
 - Another *reversi_assets* canister is also imported.
-  I use it in order to fetch necessary assets other than JS and CSS, or what Webpack can pack as source.
+  This is a way to fetch necessary assets that has been packed by [Webpack] when backend canisters are installed.
+  In my case I have a sound file that will be played when a player places a new piece.
 
 - A *logo* image is also directly imported.
-  This has to be configured in [Webpack] using *url-loader*, which essentially embeds the content of an image as a Base64 string, and use it as an image element.
+  This has to be configured in [Webpack] using *url-loader*, which essentially embeds the content of an image as a Base64 string to be used for an image element.
   Good for small images, but not big ones.
 
 - The final application is setup using [Mithril] with two routes, */play* and */game*.
-  The latter takes player and opponent names as two parameters.
+  The latter takes the player and opponent names as two parameters.
+  This allows the game screen to be reloaded in browser without interrupting the game.
 
 ## Loading resources from the assets canister
 
-This is something I struggled a bit since I was not familiar with loading DOM elements asynchronously in Javascript.
+This is something I struggled a bit since I was not familiar with loading DOM elements asynchronously in JS.
 
 When *dfx* builds canisters, it also builds a *reversi_assets* canister that basically just packs everything from <i>src/reversi_assets/assets/</i> in it.
-I use it to retrieve the sound file, and play it when a player makes a move.
-It is not as direct as pointing to a mp3 file in the *src* field of a HTML element.
-But if you are a frontend developer, you may already know how to do this from developing JS apps.
-
-As of writing, my *src/reversi_assets/assets/* contains a single file: *put.mp3* which is a sound effect of putting down a reversi piece.
-Here is how I load it:
+I use it to retrieve a sound file, but to properly load it is not as direct as putting an URL to a mp3 file in the *src* field of a HTML element.
+Here is how I load it (if you are a frontend developer, you may already know this):
 
 ```javascript
 var putsound = null;
@@ -284,8 +296,8 @@ var start = function(...) {
 }
 ```
 
-When the start function is called (from an async context), it will try to retrieve *"put.mp3"* file from the remote canister.
-On a successful retrieval, it uses Javascript facility *AudioContext* to decode the audio data and initialize the global variable *putsound*.
+When the start function is called (from an async context), it will try to retrieve the file *"put.mp3"* from the remote canister.
+On a successful retrieval, it uses a JS facility *AudioContext* to decode the audio data and initialize the global variable *putsound*.
 
 A call to *playAudio(putsound)* will play the actual sound if *putsound* has been properly initialized:
 
@@ -303,6 +315,7 @@ function playAudio(sound) {
   }
 }
 ```
+
 Other resources can be loaded in a similar way.
 I didn't use any image other than a logo, which is small enough to embed its source into Webpack
 by adding the following configuration to *webpack.config.js*:
@@ -320,11 +333,11 @@ by adding the following configuration to *webpack.config.js*:
 ## Data exchange format
 
 Motoko has a concept of "shareable" data, which means data that can be sent across canisters or language boundaries.
-Apparently I wouldn't imagine a heap pointer in C is "shareable", but anything that can be mapped to JSON seems "shareable" to me.
+Obviously I wouldn't imagine a heap pointer in C being "shareable", but anything that can be mapped to JSON seems "shareable" to me.
 For this purpose, DFINITY has developed an IDL (Interface Description Language) called [Candid] for IC applications.
 
 Candid greatly simplifies how frontend talks to the backend, or how canisters talk to each other.
-For example, the following is a snippet (incomplete) of the backend *reversi* canister as described by Candid:
+For example, the following is an (incomplete) snippet of the backend *reversi* canister as described by Candid:
 
 ```swift
 type ColorCount = 
@@ -355,20 +368,24 @@ service : {
 }
 ```
 
-As we can see, the *move* function is exported as a canister service.
-It takes two integers as input (representing a coordinate), and returns a value of type *MoveResult* as result.
-The *MoveResult* is a variant (aka. enum) that represents possible results and errors when a player makes a move.
-Among them *GameOver* represents a game is finished and carries an argument *ColorCount* that counts the number of black and white pieces.
+Take the *move* function (under *service") as an example:
 
-A candid file is automatically generated from Motoko canister source code, and automatically used by the JS user library, so there is no user involvement.
-On the Motoko side, each candid type corresponds to a Motoko type, and each service corresponds to a public actor method.
-On the JS side, each candid type corresponds to a JSON object, and each service corresponds to a member function of the imported canister object.
+* It is exported as part of the public *service* of the canister.
+* It takes two integers as input (representing a coordinate), and returns a result of type *MoveResult*.
+* *MoveResult* is a variant (aka. enum) that represents possible results and errors when a player makes a move.
+* Among the branches of *MoveResult*, *GameOver* indicates that a game has finished, and it carries an argument *ColorCount* representing the number of black and white pieces on the game board.
+
+A candid file is automatically generated from Motoko source codes for each canister, and automatically used by the JS user library, without any involvement from a developer:
+
+* On the Motoko side, each candid type corresponds to a Motoko type, and each service corresponds to a public function.
+* On the JS side, each candid type corresponds to a JSON object, and each service corresponds to a member function of the imported canister object.
 
 Most candid types have direct JS representations, some require a little conversion.
 For example, *nat* is arbitrary precision in both Motoko and Candid, and in JS it is mapped to a [big.js] integer, so one has to use *n.toNumber()* to convert it to JS native number type.
 
-Another gotcha is the *null* value in Candid (and Motoko's Option type) is represented in JSON as empty array *[]* instead of its native *null*.
-This is to differentiate the case when we have nested options, e.g. Option<Option<int>>:
+One gotcha that I ran into was the *null* value in Candid (and Motoko's Option type).
+It is represented in JSON as empty array *[]* instead of its native *null*.
+This is to differentiate the cases when we have nested options, e.g. Option<Option<int>>:
 
 |Motoko       |Rust         |JS           |
 |-------------|-------------|-------------|
@@ -376,15 +393,17 @@ This is to differentiate the case when we have nested options, e.g. Option<Optio
 |?(null)      |Some(None)   |[[]]         |
 |null         |None         |[]           |
 
-Candid is very powerful, although on the surface it may sound a lot like Protocolbuf, or JSON, so why re-inventing the wheel? But there are very good reasons that go beyond what I can mention here, and I encourage people who are interested in this topic to read the [Candid Spec].
+Candid is very powerful, although on the surface it may sound a lot like Protocolbuf, or JSON, so why re-inventing the wheel? But there are very good reasons that go beyond what is covered here, and I encourage people who are interested in this topic to read the [Candid Spec].
 
 ## Synchronize game state with backend
 
-As mentioned previously, I use a trick to immediately react to valid user inputs without having to wait for the backend game server to respond.
+As previously mentioned, I use a trick to immediately react to valid user inputs without having to wait for the backend game server to respond.
 This means the frontend only needs a confirmation from the game server (or rather, error handling if there is any) after the player makes a move.
-It will receive the other player's move from the game server by periodically polling it with the *view()* function.
 
-An implication of this design is that I had to repeat some of the same game logic in both backend (Motoko) and frontend (Javascript), which is not ideal.
+Besides sending one's own move, a client will have to learn about the other player's move too.
+This is achieved by periodically calling the *view()* function of the game canister hosted on the server side.
+
+An implication of this design is that I had to repeat some of the same game logic in both backend (Motoko) and frontend (JS), which is not ideal.
 Since Motoko compiles to Wasm, and Wasm can run in browsers, wouldn't it be nice if both frontend and backend can share the same Wasm module that implements core game logic?
 This kind of sharing is only to share code but not state.
 It may require some setup, but I think it is entirely possible.
@@ -392,19 +411,19 @@ I might give it a try in a future update.
 
 Specifically for the reversi game, in certain conditions a player may be blocked from making any move, so the other player can make 2 consecutive moves or even more. 
 In order to show every move a player makes, I chose to implement game state as a sequence of moves instead of just the latest state of the game board.
-This also means by comparing the list of moves in the local state of fronend with what's returned by calling the backend *view()* function, we can easily know what has changed since a player made the last move, whose turn it is to make next move, and so on.
+This also means by comparing the list of moves in the local state of fronend with what's returned by calling the *view()* function, we can easily know what has changed since a player made the last move, whose turn it is to make next move, and so on.
 
 ## SVG Animation 
 
-The topic of doing animation with SVG perhaps does not really belong to this post, but at one point I was really stuck and couldn't make any progress.
-So I think it is also worth sharing the lesson I've learned.
+The topic of doing animation with Scalable Vector Graphics (SVG) perhaps does not belong to this post, but at one point I was really stuck because of it.
+So I'd like to share the lesson I've learned.
 
-Here is the problem I had: animations do not start despite *repeatCount* setting.
-Most online resources on SVG only gives example of \<animate\> that either repeats indefinitely or with a *repeatCount* setting.
+The problem I had was: animations do not start when I use *repeatCount* setting to show them only once.
+Most online resources on SVG only give example of \<animate\> that either repeats indefinitely or with a *repeatCount* setting.
 They implicitly assumed that if an animation is to be shown once, it is started once the page is loaded (or with some delay setting).
 However, with most one-page app frameworks like [React] or [Mithril], the page is often not reloaded but merely re-rendered.
-So when I wanted to show a piece flipping side from white to black or black to white, it has to happen when the page re-renders, not when page loads.
-I was missing this crucial difference, and only figured it out after many failed attempts.
+So when I wanted to show a game piece flipping from white to black or from black to white, it has to happen when the page re-renders, not when page reloads.
+I was missing this crucial difference, and only figured it out after many failed tries.
 
 So here is how I render an *animate* element (as a sub-element of SVG) using Mithril, where *rx* of an ellipse is changed from initial *radius* to *0* and back.
 
@@ -419,13 +438,12 @@ m("animate", {
 })
 ```
 
-- *begin* is set to *indefinite* to mean that the animation has to be manually started.
-- *fill* is set to *freeze* to mean that after the animation finishes, its ending state should stay.
-- *values* is set to 4 values, where first two are repeated *radius* as a trick to start animation 
-  after 0.1s (1/4 of *dur*) delay. This is because *begin* was already set to *indefinite*.
+- *begin* is set to *indefinite* so that the animation can be manually controlled/started.
+- *fill* is set to *freeze* to mean that after the animation finishes, its ending state will stay.
+- *values* is set to 4 values, where first two are repeated as a trick to start animation after 0.1s (1/4 of *dur*) delay. This is because *begin* was already set to *indefinite*.
 
 The main point is that animations should be started manually.
-I use *setTimeout* to trigger it with 0s delay, which is a trick to wait until new UI elements prepared by Mithril are rendered in browser DOM:
+I use *setTimeout* to trigger it with 0s delay, which is a trick to wait until new UI elements prepared by Mithril are rendered in the browser DOM:
 
 ```javascript
 setTimeout(function() {
