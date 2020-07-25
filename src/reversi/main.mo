@@ -13,9 +13,13 @@ import Text "mo:base/Text";
 
 import Game "./game";
 
+type Iter<T> = Iter.Iter<T>;
+type Result<T,E> = Result.Result<T,E>;
 type PlayerId = Principal;
 type PlayerName = Text;
 type Score = Nat;
+
+func t(x: Result<(), ()>) : ()  { Result.unwrapOk(x) };
 
 type MoveResult = {
   #GameNotFound;
@@ -258,7 +262,7 @@ func update_available_players(available_players: [var PlayerName], name: PlayerN
   }
 };
 
-func init_top_players(players: Iter.Iter<PlayerState>) : [var ?PlayerView] {
+func init_top_players(players: Iter<PlayerState>) : [var ?PlayerView] {
    let top_players = Array.init<?PlayerView>(10, null);
    Iter.iterate<PlayerState>(players, func(player, _) {
      update_top_players(top_players, player.name, player.score)
@@ -327,9 +331,9 @@ actor {
   // a new account is created with the given name. Otherwise the given name is ignored.
   // Return player info if the player is found or successfully registered, or an registration
   // error.
-  public shared(msg) func register(name: Text): async Result.Result<PlayerView, RegistrationError> {
-    let id = msg.caller;
-    switch (lookup_player_by_id(id), valid_name(name)) {
+  public shared(msg) func register(name: Text): async Result<PlayerView, RegistrationError> {
+    let player_id = msg.caller;
+    switch (lookup_player_by_id(player_id), valid_name(name)) {
       case (?player, _) {
         update_recent_players(recent_players, player.name);
         #ok(player_state_to_view(player))
@@ -338,7 +342,7 @@ actor {
       case (null, true) {
         switch (lookup_id_by_name(name)) {
           case null {
-              let player = insert_new_player(id, name);
+              let player = insert_new_player(player_id, name);
               update_recent_players(recent_players, name);
               #ok(player_state_to_view(player))
           };
@@ -422,7 +426,7 @@ actor {
   //
   // It also means if white has left a game (to start another one), black can keep waiting.
   // But if black has left a game (to start another one), the game must be cancelled.
-  public shared(msg) func start(opponent_name: Text): async Result.Result<GameView, StartError> {
+  public shared (msg) func start(opponent_name: Text): async Result<GameView, StartError> {
     let player_id = msg.caller;
     switch (lookup_player_by_id(player_id)) {
       case null (#err(#PlayerNotFound));
@@ -589,7 +593,7 @@ actor {
   };
 
   // External interface to view the state of an on-going game.
-  public shared query(msg) func view() : async ?GameView {
+  public shared query (msg) func view() : async ?GameView {
       let player_id = msg.caller;
       Option.map(lookup_game_by_id(player_id), game_state_to_view)
   };
