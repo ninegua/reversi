@@ -471,17 +471,20 @@ I think it helped to speed up the debugging without having to go through browser
 But of course unit testing is a better way to ensure correctness.
 [Motoko] also offers a REPL, but I've not tried it myself.
 
+# Play the game!
+
 To actually get the game to run on IC, there is now a [Tungsten network] opened up to developers.
-However, non-developers cannot easily access applications on the network because it is not yet public.
-I hosted it myself using *dfx* and *nginx* as a reverse proxy so that I can invite friends to play.
+I encourage you to sign up, clone [this project]( https://github.com/ninegua/reversi) and deploy the game yourself to get a firsthand developer experience.
 
-## Epilogue
+However, non-developers cannot easily access applications on Tungsten because it is not yet public.
+So I also hosted it myself using *dfx* and *nginx* as a reverse proxy so that I can invite friends to play.
+I do not encourage people to do this on their own because of the security risk involved with alpha-quality of the software.
 
-A link to the actual game is given in the footer of this document for demo purposes, but I do not guarantee its uptime.
+A link to the actual game is given in the footer of this document for demo purposes only.
 My plan is to deploy it on the public network once IC launches.
 
 Please feel free to visit the [project repository](https://github.com/ninegua/reversi) and submit issues if you have any questions.
-PRs are also welcome!
+Pull Requests are also welcome!
 
 [Internet Computer]: https://dfinity.org
 [DFINITY]: https://dfinity.org
