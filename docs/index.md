@@ -381,7 +381,7 @@ A candid file is automatically generated from Motoko source codes for each canis
 * On the JS side, each candid type corresponds to a JSON object, and each method corresponds to a member function of the imported canister object.
 
 Most candid types have direct JS representations, some require a little conversion.
-For example, *nat* is arbitrary precision in both Motoko and Candid, and in JS it is mapped to a [big.js] integer, so one has to use *n.toNumber()* to convert it to JS native number type.
+For example, *nat* is arbitrary precision in both Motoko and Candid, and in JS it is mapped to a [bignumber.js] integer, so one has to use *n.toNumber()* to convert it to JS native number type.
 
 One gotcha that I ran into was the *null* value in Candid (and Motoko's Option type).
 It is represented in JSON as empty array *[]* instead of its native *null*.
@@ -521,5 +521,5 @@ Pull Requests are also welcome!
 [Webpack]: https://webpack.js.org
 [Candid]: https://github.com/dfinity/candid
 [Candid Spec]: https://github.com/dfinity/candid/blob/master/IDL.md
-[big.js]: https://github.com/MikeMcl/big.js
+[bignumber.js]: https://github.com/MikeMcl/bignumber.js
 [Tungsten network]: https://dfinity.org/tungsten
