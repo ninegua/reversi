@@ -385,7 +385,7 @@ For example, *nat* is arbitrary precision in both Motoko and Candid, and in JS i
 
 One gotcha that I ran into was the *null* value in Candid (and Motoko's Option type).
 It is represented in JSON as empty array *[]* instead of its native *null*.
-This is to differentiate the cases when we have nested options, e.g. Option<Option<int>>:
+This is to differentiate the cases when we have nested options, e.g. *Option<Option\<int\>>*:
 
 |Motoko       |Rust         |JS           |
 |-------------|-------------|-------------|
