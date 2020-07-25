@@ -21,10 +21,10 @@ help:
 	@echo '  install|reinstall|upgrade -- Build and install canisters with different mode.'
 	@echo '  clean                     -- Remove build products.'
 	@echo '  canister                  -- Only build the main canister'
-	@echo '  assets                    -- Build both the main and assets canister.'
+	@echo '  assets                    -- Build both the main and assets canisters.'
 	@echo 
 	@echo 'The PROVIDER variable is optional. It corresponds to "networks" configuration in'
-	@echo 'the dfx.json file. Default is "local".'
+	@echo 'the dfx.json file. The default is "local".'
 
 .PHONY: help
 

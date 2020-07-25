@@ -348,15 +348,15 @@ type ColorCount =
 
 type MoveResult = 
  variant {
-   "GameNotFound": null;
-   "GameNotStarted": null;
+   "GameNotFound";
+   "GameNotStarted";
    "GameOver": ColorCount;
-   "IllegalColor": null;
-   "IllegalMove": null;
-   "InvalidColor": null;
-   "InvalidCoordinate": null;
-   "OK": null;
-   "Pass": null;
+   "IllegalColor";
+   "IllegalMove";
+   "InvalidColor";
+   "InvalidCoordinate";
+   "OK";
+   "Pass";
  };
 
 service : {
@@ -368,17 +368,17 @@ service : {
 }
 ```
 
-Take the *move* function (under *service") as an example:
+Take the *move* method as an example:
 
-* It is exported as part of the public *service* of the canister.
+* It is one of the methods exported under the *service* interface of the canister.
 * It takes two integers as input (representing a coordinate), and returns a result of type *MoveResult*.
 * *MoveResult* is a variant (aka. enum) that represents possible results and errors when a player makes a move.
 * Among the branches of *MoveResult*, *GameOver* indicates that a game has finished, and it carries an argument *ColorCount* representing the number of black and white pieces on the game board.
 
 A candid file is automatically generated from Motoko source codes for each canister, and automatically used by the JS user library, without any involvement from a developer:
 
-* On the Motoko side, each candid type corresponds to a Motoko type, and each service corresponds to a public function.
-* On the JS side, each candid type corresponds to a JSON object, and each service corresponds to a member function of the imported canister object.
+* On the Motoko side, each candid type corresponds to a Motoko type, and each method corresponds to a public function.
+* On the JS side, each candid type corresponds to a JSON object, and each method corresponds to a member function of the imported canister object.
 
 Most candid types have direct JS representations, some require a little conversion.
 For example, *nat* is arbitrary precision in both Motoko and Candid, and in JS it is mapped to a [big.js] integer, so one has to use *n.toNumber()* to convert it to JS native number type.
@@ -464,21 +464,34 @@ I developed this game on Linux.
 Initial setup is just to install [DFINITY SDK], and follow its instructions to create a project.
 Later I find it tedious to remember all *dfx* command lines, so I made a [Makefile](https://github.com/ninegua/reversi/blob/master/Makefile) to help.
 
-Debugging and testing was mostly done in browser, so lots of *console.log()*.
-There is actually a way to [write unit tests in Motoko](https://github.com/kritzcreek/motoko-matchers), but I only learned it after I wrote the game.
-Initially I also developed a terminal based frontend just using *dfx* and shell script.
+```
+USAGE: make [PROVIDER=...] [install|reinstall|upgrade|clean|canister|assets]
+
+Build & install instructions:
+
+  install|reinstall|upgrade -- Build and install canisters with different mode.
+  clean                     -- Remove build products.
+  canister                  -- Only build the main canister
+  assets                    -- Build both the main and assets canisters.
+
+The PROVIDER variable is optional. It corresponds to "networks" configuration in
+the dfx.json file. The default is "local".
+```
+
+Debugging and testing were mostly done in browser, so lots of *console.log()*.
+There is actually a way to [write unit tests in Motoko](https://github.com/kritzcreek/motoko-matchers), but I only learned about it after I wrote the game.
+Initially I also developed a terminal based frontend using Shell script and *dfx*.
 I think it helped to speed up the debugging without having to go through browsers.
 But of course unit testing is a better way to ensure correctness.
-[Motoko] also offers a REPL, but I've not tried it myself.
 
 # Play the game!
 
-To actually get the game to run on IC, there is now a [Tungsten network] opened up to developers.
-I encourage you to sign up, clone [this project]( https://github.com/ninegua/reversi) and deploy the game yourself to get a firsthand developer experience.
+To actually run this game on IC, there is now a [Tungsten network] opened up to developers.
+I encourage you to sign up, clone [this project]( https://github.com/ninegua/reversi) and deploy the game yourself to get a first hand developer experience.
 
 However, non-developers cannot easily access applications on Tungsten because it is not yet public.
 So I also hosted it myself using *dfx* and *nginx* as a reverse proxy so that I can invite friends to play.
-I do not encourage people to do this on their own because of the security risk involved with alpha-quality of the software.
+I do not encourage people to do this on their own because the software is still at alpha stage.
 
 A link to the actual game is given in the footer of this document for demo purposes only.
 My plan is to deploy it on the public network once IC launches.
