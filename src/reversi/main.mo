@@ -215,24 +215,28 @@ func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score
 
 func update_fifo_player_list(fifo_players: [var PlayerName], name: PlayerName) {
   let N = fifo_players.size();
-  for (i in Iter.range(0, N - 1)) {
-    if (fifo_players[i] == "") {
-      fifo_players[i] := name;
-      return;
-    } else if (fifo_players[i] == name) {
-      if (i == N - 1 or fifo_players[i+1] == "") {
-        return;
-      };
-      for (i in Iter.range(i, N - 2)) {
-        fifo_players[i] := fifo_players[i+1];
-      };
-      fifo_players[N - 1] := "";
+  func remove(names: [var PlayerName], name: PlayerName) {
+    for (i in Iter.range(0, N - 1)) {
+      if (names[i] == name) {
+        for (j in Iter.range(i, N - 2)) {
+          names[j] := names[j + 1];
+        };
+        names[N-1] := "";
+      }
     }
   };
-  for (i in Iter.range(0, N - 2)) {
-    fifo_players[i] := fifo_players[i + 1];
+  func add(names: [var PlayerName], name: PlayerName) {
+    for (i in Iter.range(0, N - 1)) {
+      if (fifo_players[i] == "") {
+        fifo_players[i] := name;
+        return;
+      }
+    };
+    remove(names, names[0]);
+    names[N-1] := name;
   };
-  fifo_players[N - 1] := name;
+  remove(fifo_players, name);
+  add(fifo_players, name);
 };
 
 let update_recent_players = update_fifo_player_list;
