@@ -1,4 +1,4 @@
-# Multi-Player Reversi Game on Internet Computer
+# Multiplayer Reversi Game on Internet Computer
 
 **[Read about how the game was made!](https://ninegua.github.io/reversi)**
 
@@ -28,7 +28,7 @@ The game will also keep player scores across all games.
 The GUI frontend is build with Javascript and [Mithril].
 It is stored as a separate asset canister directly on [Internet Computer], and can be loaded at the game URL into a browser.
 
-The terminal-based frontend no longer works with the new multi-player API.
+The terminal-based frontend no longer works with the new multiplayer API.
 The [DFINITY SDK] currently lacks a way to switch or use different keypairs, which means the caller identity cannot change, so we don't have a way to run the game using the `dfx` command.
 
 ## Installation

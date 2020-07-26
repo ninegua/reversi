@@ -2,7 +2,7 @@ There are many promises of the upcoming [Internet Computer] (IC) platform, and o
 *Disclaimer:* I work for [DFINITY], the company that builds IC.
 But I'm also a software developer at heart, and I want to evaluate the experience of building on top of IC from the view point of a web developer.
 
-I chose to build a reversi game, not as a sample app, but as a real application complete with all bells-and-whistles that I'd imagine a multi-player reversi game might have.
+I chose to build a reversi game, not as a sample app, but as a real application complete with all bells-and-whistles that I'd imagine a multiplayer reversi game might have.
 
 ![Reversi Screenshots](./screenshots.png)
 
@@ -41,13 +41,13 @@ Hopefully by the end of reading this post, you can agree with me that a restrict
 
 # Client-server architecture
 
-A multi-player game requires exchanging data between players, the implementation of which often follows a client-server architecture:
+A multiplayer game requires exchanging data between players, the implementation of which often follows a client-server architecture:
 - A server hosts the actual game and manages communication with game clients;
 - Two or more clients, each representing a player, fetch state from server, render game UI, and also take player inputs to forward to the server.
 
-Building a multi-player game as a web application means the client has to run inside a browser, utilizing HTTP protocol for data communication, and using Javascript (JS) to render game UI as a web page.
+Building a multiplayer game as a web application means the client has to run inside a browser, utilizing HTTP protocol for data communication, and using Javascript (JS) to render game UI as a web page.
 
-Specifically for a multi-player reversi game, I want to implement the following functionalities:
+Specifically for a multiplayer reversi game, I want to implement the following functionalities:
 - Any two players can choose to play a game against each other;
 - Players gain points by winning a game, which also counts towards their accumulated scores;
 - A score board shows the top players;
@@ -206,7 +206,7 @@ If the game only refreshes its screen 2s after a player has clicked the mouse (o
 So I had to optimize this part by reacting to user inputs directly on the client side without having to wait for the server to respond.
 This means the frontend UI will have to validate player's move, calculate what pieces would be flipped, and show them on screen immediately.
 It also implies that whatever the frontend shows to the player will have to match server's response to the same move when it comes back, or we risk inconsistency.
-But again, I believe any reasonable implementation of a multi-player reversi or chess game would do the same, regardless of whether its backend takes 200ms to respond, or 2s.
+But again, I believe any reasonable implementation of a multiplayer reversi or chess game would do the same, regardless of whether its backend takes 200ms to respond, or 2s.
 
 # Frontend client
 
@@ -393,7 +393,7 @@ This is to differentiate the cases when we have nested options, e.g. *Option<Opt
 |?(null)      |Some(None)   |[[]]         |
 |null         |None         |[]           |
 
-Candid is very powerful, although on the surface it may sound a lot like Protocolbuf, or JSON, so why re-inventing the wheel? But there are very good reasons that go beyond what is covered here, and I encourage people who are interested in this topic to read the [Candid Spec].
+Candid is very powerful, although on the surface it may sound a lot like Protocolbuf, or JSON. So why re-inventing the wheel? There are very good reasons besides what is covered here, and I encourage people who are interested in this topic to read the [Candid Spec].
 
 ## Synchronize game state with backend
 
