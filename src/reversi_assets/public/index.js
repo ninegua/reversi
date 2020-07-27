@@ -671,7 +671,7 @@ function Game() {
 
 function make_player_list(players, ordered) {
   let half = players.slice(0, 4);
-  let more = players.slice(4, 7);
+  let more = players.slice(4, 8);
   let l = ordered ? "ol" : "ul";
   let make_player_link = function(player) {
     return m(
