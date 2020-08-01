@@ -59,7 +59,7 @@ upgrade-assets:
 .PHONY: clean clean-state clean-all
 
 clean: 
-	rm -rf .dfx/local/$(PROVIDER)
+	rm -rf .dfx/$(PROVIDER)
 
 clean-state:
 	rm -rf .dfx/state
