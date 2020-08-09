@@ -56,15 +56,18 @@ upgrade-canister:
 upgrade-assets:
 	$(MAKE) MODE=upgrade install-assets
 
-.PHONY: clean clean-state clean-all
+.PHONY: clean clean-npm clean-state clean-all
 
 clean: 
 	rm -rf .dfx/$(PROVIDER)
 
+clean-npm:
+	rm -rf node_modules package-lock.json
+
 clean-state:
 	rm -rf .dfx/state
 
-cleanall: clean clean-state
+cleanall: clean clean-state clean-npm
 
 ######################
 
