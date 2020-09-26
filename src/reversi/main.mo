@@ -12,265 +12,20 @@ import Result "mo:base/Result";
 import Text "mo:base/Text";
 
 import Game "./game";
-
-type Iter<T> = Iter.Iter<T>;
-type Result<T,E> = Result.Result<T,E>;
-type PlayerId = Principal;
-type PlayerName = Text;
-type Score = Nat;
-
-func t(x: Result<(), ()>) : ()  { Result.unwrapOk(x) };
-
-type MoveResult = {
-  #GameNotFound;
-  #GameNotStarted;
-  #InvalidCoordinate;
-  #InvalidColor;
-  #IllegalMove;
-  #IllegalColor;
-  #GameOver: Game.ColorCount;
-  #Pass;
-  #OK;
-};
-
-type PlayerState = {
-  name: PlayerName;
-  var score: Score;
-};
-
-type PlayerView = {
-  name: PlayerName;
-  score: Score;
-};
-
-type Players = {
-  id_map: HashMap.HashMap<PlayerId, PlayerState>;
-  name_map: HashMap.HashMap<PlayerName, PlayerId>;
-};
-
-type ListResult = {
-  top: [PlayerView];
-  recent: [PlayerView];
-  available: [PlayerView];
-};
-
-type RegistrationError = {
-  #InvalidName;
-  #NameAlreadyExists;
-};
-
-// History of valid moves. The use of Nat8 here implies the max dimension is 8.
-type Moves = Buffer.Buffer<Nat8>;
-
-type GameState = {
-  dimension: Nat;
-  board: Game.Board;
-  moves: Moves;
-  var black: (?PlayerId, PlayerName);
-  var white: (?PlayerId, PlayerName);
-  var next: Game.Color;
-  var result: ?Game.ColorCount;
-};
-
-type GameView = {
-  dimension: Nat;
-  board: Text;
-  moves: [Nat8];
-  black: (?(), PlayerName);
-  white: (?(), PlayerName);
-  next: Game.Color;
-  result: ?Game.ColorCount;
-};
-
-type Games = Buffer.Buffer<GameState>;
-
-type StartError = {
-  #InvalidOpponentName;
-  #PlayerNotFound;
-  #NoSelfGame;
-  #OpponentInAnotherGame;
-};
-
-// Convert text to lower case
-func to_lowercase(name: Text) : Text {
-  var str = "";
-  for (c in Text.toIter(name)) {
-    let ch = if ('A' <= c and c <= 'Z') { Prim.word32ToChar(Prim.charToWord32(c) + 32) } else { c };
-    str := str # Prim.charToText(ch);
-  };
-  str
-};
-
-// Text equality check ignoring cases.
-func eq_nocase(s: Text, t: Text) : Bool {
-  let m = s.size();
-  let n = t.size();
-  m == n and to_lowercase(s) == to_lowercase(t)
-};
-
-// Check if player name is valid, which is defined as:
-// 1. Between 3 and 10 characters long
-// 2. Alphanumerical. Special characters like  '_' and '-' are also allowed.
-func valid_name(name: Text): Bool {
-  let str : [Char] = Iter.toArray(Text.toIter(name));
-  if (str.size() < 3 or str.size() > 10) {
-    return false;
-  };
-  for (i in Iter.range(0, str.size() - 1)) {
-    let c = str[i];
-    if (not ((c >= 'a' and c <= 'z') or
-             (c >= 'A' and c <= 'Z') or
-             (c >= '0' and c <= '9') or
-             (c == '_' or c == '-'))) {
-       return false;
-    }
-  };
-  true
-};
-
-// Two games are the same if their player names match.
-func same_game(game_A: GameState, game_B: GameState) : Bool {
-  (game_A.black.1 == game_B.black.1 and game_A.white.1 == game_B.white.1)
-};
-
-// Reset a game to initial state.
-func reset_game(game: GameState) {
-    let N = game.dimension;
-    let M = N / 2;
-    let blacks = [ (M - 1, M), (M, M - 1) ];
-    let whites = [ (M - 1, M - 1), (M, M) ];
-    Game.init_board(N, game.board, blacks, whites);
-    game.moves.clear();
-    let add_move = func ((row: Nat, col: Nat)) {
-      game.moves.add(Nat8.fromNat(row * N + col))
-    };
-    add_move(whites[0]);
-    add_move(blacks[0]);
-    add_move(whites[1]);
-    add_move(blacks[1]);
-    game.next := #white;
-    game.result := null;
-};
-
-// Return player level, which is just the number of digits in the player score (base10).
-func get_level(score: Nat) : Nat {
-  let str = Nat.toText(score);
-  str.size()
-};
-
-func player_state_to_view(player: PlayerState): PlayerView {
-  { name = player.name; score = player.score; }
-};
-
-func game_state_to_view(game: GameState): GameView {
-  let (black_id, black_name) = game.black;
-  let (white_id, white_name) = game.white;
-  {
-    black = (Option.map<PlayerId, ()>(black_id, func(_): () { () }), black_name);
-    white = (Option.map<PlayerId, ()>(white_id, func(_): () { () }), white_name);
-    board = Game.render_board(game.dimension, game.board);
-    moves = game.moves.toArray();
-    dimension = game.dimension;
-    next = game.next;
-    result = game.result;
-  }
-};
-
-func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score_: Score) {
-  let N = top_players.size();
-  // we first remove this player from the list if already exists
-  label outer for (i in Iter.range(0, N - 1)) {
-    switch (top_players[i]) {
-      case null {
-        break outer;
-      };
-      case (?player) {
-        if (player.name == name_) {
-          for (j in Iter.range(i, N -2)) {
-            top_players[j] := top_players[j + 1];
-          };
-          top_players[N - 1] := null;
-          break outer;
-        }
-      }
-    }
-  };
-  // skip if new score is 0
-  if (score_ == 0) { return; };
-  // otherwise trying to insert.
-  for (i in Iter.range(0, N - 1)) {
-    switch (top_players[i]) {
-      case null {
-        top_players[i] := ?{ name = name_; score = score_ };
-        return;
-      };
-      case (?player) {
-        if (player.score < score_) {
-           for (j in Iter.revRange(N - 1, i + 1)) {
-             top_players[Int.abs(j)] := top_players[Int.abs(j - 1)];
-           };
-           top_players[i] := ?{ name = name_; score = score_ };
-           return;
-        }
-      }
-    }
-  }
-};
-
-func update_fifo_player_list(fifo_players: [var PlayerName], name: PlayerName) {
-  let N = fifo_players.size();
-  func remove(names: [var PlayerName], name: PlayerName) {
-    for (i in Iter.range(0, N - 1)) {
-      if (names[i] == name) {
-        for (j in Iter.range(i, N - 2)) {
-          names[j] := names[j + 1];
-        };
-        names[N-1] := "";
-      }
-    }
-  };
-  func add(names: [var PlayerName], name: PlayerName) {
-    for (i in Iter.range(0, N - 1)) {
-      if (fifo_players[i] == "") {
-        fifo_players[i] := name;
-        return;
-      }
-    };
-    remove(names, names[0]);
-    names[N-1] := name;
-  };
-  remove(fifo_players, name);
-  add(fifo_players, name);
-};
-
-let update_recent_players = update_fifo_player_list;
-
-func update_available_players(available_players: [var PlayerName], name: PlayerName, available: Bool) {
-  let N = available_players.size();
-  if (not available) {
-    for (i in Iter.range(0, N - 1)) {
-      if (available_players[i] == name) {
-        for (i in Iter.range(i, N - 2)) {
-          available_players[i] := available_players[i+1];
-        };
-        available_players[N - 1] := "";
-        return;
-      }
-    }
-  } else {
-    update_fifo_player_list(available_players, name);
-  }
-};
-
-func init_top_players(players: Iter<PlayerState>) : [var ?PlayerView] {
-   let top_players = Array.init<?PlayerView>(10, null);
-   Iter.iterate<PlayerState>(players, func(player, _) {
-     update_top_players(top_players, player.name, player.score)
-   });
-   top_players
-};
+import Types "./types";
+import Utils "./utils";
 
 actor {
+
+  type Result<T,E> = Result.Result<T,E>;
+  type Players = Types.Players;
+  type PlayerId = Types.PlayerId;
+  type PlayerName = Types.PlayerName;
+  type PlayerState = Types.PlayerState;
+  type PlayerView = Types.PlayerView;
+  type Games = Types.Games;
+  type GameState = Types.GameState;
+  type GameView = Types.GameView;
 
   // We use stable var to help keeping player data through upgrades.
   // This is necessary at the moment because HashMap cannot be made stable.
@@ -291,13 +46,13 @@ actor {
     );
     name_map = HashMap.fromIter<PlayerName, PlayerId>(
       Iter.map<(PlayerId, PlayerState), (PlayerName, PlayerId)>(
-        accounts.vals(), func ((id, state)) { (to_lowercase(state.name), id) }
+        accounts.vals(), func ((id, state)) { (Utils.to_lowercase(state.name), id) }
       ), accounts.size(), func (x, y) { x == y }, Text.hash
     );
   };
 
   let top_players : [var ?PlayerView] =
-    init_top_players(
+    Utils.init_top_players(
       Iter.map<(PlayerId, PlayerState), PlayerState>(
         accounts.vals(),
         func (x) { x.1 }
@@ -310,7 +65,7 @@ actor {
   };
 
   func lookup_id_by_name(name: PlayerName) : ?PlayerId {
-    players.name_map.get(to_lowercase(name))
+    players.name_map.get(Utils.to_lowercase(name))
   };
 
   func lookup_player_by_name(name: PlayerName) : ?PlayerState {
@@ -323,7 +78,7 @@ actor {
   func insert_new_player(id: PlayerId, name_: PlayerName) : PlayerState {
     let player = { name = name_; var score = 0; };
     players.id_map.put(id, player);
-    players.name_map.put(to_lowercase(name_), id);
+    players.name_map.put(Utils.to_lowercase(name_), id);
     player
   };
 
@@ -331,20 +86,20 @@ actor {
   // a new account is created with the given name. Otherwise the given name is ignored.
   // Return player info if the player is found or successfully registered, or an registration
   // error.
-  public shared(msg) func register(name: Text): async Result<PlayerView, RegistrationError> {
+  public shared(msg) func register(name: Text): async Result<PlayerView, Types.RegistrationError> {
     let player_id = msg.caller;
-    switch (lookup_player_by_id(player_id), valid_name(name)) {
+    switch (lookup_player_by_id(player_id), Utils.valid_name(name)) {
       case (?player, _) {
-        update_recent_players(recent_players, player.name);
-        #ok(player_state_to_view(player))
+        Utils.update_recent_players(recent_players, player.name);
+        #ok(Utils.player_state_to_view(player))
       };
       case (_, false) (#err(#InvalidName));
       case (null, true) {
         switch (lookup_id_by_name(name)) {
           case null {
               let player = insert_new_player(player_id, name);
-              update_recent_players(recent_players, name);
-              #ok(player_state_to_view(player))
+              Utils.update_recent_players(recent_players, name);
+              #ok(Utils.player_state_to_view(player))
           };
           case (?_) (#err(#NameAlreadyExists));
         }
@@ -380,8 +135,8 @@ actor {
       let game = games.get(i);
       let (black_id, black_name) = game.black;
       let (white_id, white_name) = game.white;
-      if ((eq_nocase(white_name, player_name) and Option.isSome(white_id)) or
-          (eq_nocase(black_name, player_name) and Option.isSome(black_id))) {
+      if ((Utils.eq_nocase(white_name, player_name) and Option.isSome(white_id)) or
+          (Utils.eq_nocase(black_name, player_name) and Option.isSome(black_id))) {
         return ?game;
       }
     };
@@ -391,7 +146,7 @@ actor {
   // Delete a game from the existing games.
   func delete_game(game: GameState) {
     for (i in Iter.range(0, games.size()-1)) {
-      if (same_game(game, games.get(i))) {
+      if (Utils.same_game(game, games.get(i))) {
         for (j in Iter.range(i + 1, games.size()-1)) {
           let game = games.get(j);
           games.put(j-1, game);
@@ -404,15 +159,15 @@ actor {
   // proceed with a game and update player status
   func proceed(game: GameState) : GameView {
     if (Option.isSome(game.result)) {
-      reset_game(game);
+      Utils.reset_game(game);
     };
     if (Option.isSome(game.black.0)) {
-      update_available_players(available_players, game.black.1, true);
+      Utils.update_available_players(available_players, game.black.1, true);
     };
     if (Option.isSome(game.white.0)) {
-      update_available_players(available_players, game.white.1, true);
+      Utils.update_available_players(available_players, game.white.1, true);
     };
-    game_state_to_view(game)
+    Utils.game_state_to_view(game)
   };
 
   // Start a game with opponent. Rules are:
@@ -426,7 +181,7 @@ actor {
   //
   // It also means if white has left a game (to start another one), black can keep waiting.
   // But if black has left a game (to start another one), the game must be cancelled.
-  public shared (msg) func start(opponent_name: Text): async Result<GameView, StartError> {
+  public shared (msg) func start(opponent_name: Text): async Result<GameView, Types.StartError> {
     let player_id = msg.caller;
     switch (lookup_player_by_id(player_id)) {
       case null (#err(#PlayerNotFound));
@@ -438,10 +193,10 @@ actor {
           switch (lookup_game_by_name(player.name)) {
             case (?game) {
               // We have a game
-              if (eq_nocase(game.black.1, player.name) and Option.isNull(game.white.0)) {
+              if (Utils.eq_nocase(game.black.1, player.name) and Option.isNull(game.white.0)) {
                 // Opponent has not arrived or already left, cancel it
                 game.white := (null, "");
-                reset_game(game);
+                Utils.reset_game(game);
                 return #ok(proceed(game));
               } else if (Option.isNull(game.result)) {
                 // Still live? Continue
@@ -454,7 +209,7 @@ actor {
             case null {}
           };
           return #ok(proceed(add_game(player_id, player.name, opponent_name)));
-        } else if (not valid_name(opponent_name)) {
+        } else if (not Utils.valid_name(opponent_name)) {
           return #err(#InvalidOpponentName);
         };
 
@@ -463,9 +218,9 @@ actor {
           case (game, ?game_B) {
             switch (game) {
               case (?game_A) {
-                if (not (same_game(game_A, game_B))) {
+                if (not (Utils.same_game(game_A, game_B))) {
                   // must quit from existing game if it is not the same as game_B
-                  if (eq_nocase(game_A.black.1, player.name)) {
+                  if (Utils.eq_nocase(game_A.black.1, player.name)) {
                     delete_game(game_A);
                   } else {
                     game_A.white := (null, "");
@@ -475,10 +230,10 @@ actor {
               case null {}
             };
             // check if opponent is expecting no player or this player
-            if (eq_nocase(game_B.black.1, player.name)) {
+            if (Utils.eq_nocase(game_B.black.1, player.name)) {
               game_B.black := (?player_id, player.name);
               #ok(proceed(game_B))
-            } else if (eq_nocase(game_B.white.1, player.name) or game_B.white.1 == "") {
+            } else if (Utils.eq_nocase(game_B.white.1, player.name) or game_B.white.1 == "") {
               game_B.white := (?player_id, player.name);
               #ok(proceed(game_B))
             } else {
@@ -487,14 +242,14 @@ actor {
           };
           // this player already in a game
           case (?game, null) {
-            if (eq_nocase(game.white.1, player.name)) {
+            if (Utils.eq_nocase(game.white.1, player.name)) {
               // remove this player from existing game, and start a new one
               game.white := (null, "");
               #ok(proceed(add_game(player_id, player.name, opponent_name)));
             } else {
               // this player is playing black, reset this game
               game.white := (null, opponent_name);
-              reset_game(game);
+              Utils.reset_game(game);
               #ok(proceed(game))
             }
           };
@@ -520,7 +275,7 @@ actor {
       var next : Game.Color = #white;
       var result : ?Game.ColorCount = null;
     };
-    reset_game(game);
+    Utils.reset_game(game);
     games.add(game);
     game
   };
@@ -533,8 +288,8 @@ actor {
     switch (Option.chain(black_id, lookup_player_by_id),
             Option.chain(white_id, lookup_player_by_id)) {
       case (?black_player, ?white_player) {
-        let black_level = get_level(black_player.score);
-        let white_level = get_level(white_player.score);
+        let black_level = Utils.get_level(black_player.score);
+        let white_level = Utils.get_level(white_player.score);
         let compute_score = func (points: Int, player_level: Nat, opponent_level: Nat): Int {
           if (points > 0) {
             points * opponent_level / player_level
@@ -551,7 +306,7 @@ actor {
             } else {
               player.score := Int.abs(player.score + delta);
             };
-            update_top_players(top_players, player.name, player.score);
+            Utils.update_top_players(top_players, player.name, player.score);
           };
         let points : Int = (result.black - result.white) * bonus / N / N;
         set_score(black_player, points, black_level, white_level);
@@ -562,14 +317,14 @@ actor {
   };
 
   // List top/recent/available players.
-  public query func list(): async ListResult {
+  public query func list(): async Types.ListResult {
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
       Array.map<?PlayerView, PlayerView>(
         Array.filter<?PlayerView>(
           Array.tabulate<?PlayerView>(count, func(i) {
             Option.map<PlayerState, PlayerView>(
               lookup_player_by_name(arr[i]),
-              player_state_to_view)
+              Utils.player_state_to_view)
           }),
           Option.isSome),
         func(x) { Option.unwrap<PlayerView>(x) } )
@@ -595,12 +350,12 @@ actor {
   // External interface to view the state of an on-going game.
   public shared query (msg) func view() : async ?GameView {
       let player_id = msg.caller;
-      Option.map(lookup_game_by_id(player_id), game_state_to_view)
+      Option.map(lookup_game_by_id(player_id), Utils.game_state_to_view)
   };
 
   // External interface that places a piece of given color at a coordinate.
   // It returns "OK" when the move is valid.
-  public shared(msg) func move(row_: Int, col_: Int) : async MoveResult {
+  public shared(msg) func move(row_: Int, col_: Int) : async Types.MoveResult {
     // The casting is necessary because dfx has yet to support Nat on commandline
     let row : Nat = Int.abs(row_);
     let col : Nat = Int.abs(col_);
