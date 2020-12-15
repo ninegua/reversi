@@ -78,7 +78,15 @@ $(CANISTER_IDS): $(DFX_CFG)
 	dfx canister --network $(PROVIDER) create --all
 
 $(CANISTER_TARGET): $(CANISTER_IDS) $(MO_SRC) $(DFX_CFG)
-	dfx build --network $(PROVIDER) --skip-frontend
+	dfx build --network $(PROVIDER)
 
 $(ASSETS_TARGET) $(JS_TARGET) : $(CANISTER_IDS) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(DFX_CFG) node_modules
 	dfx build --network $(PROVIDER)
+
+sodium-install:
+	npm install > /dev/null 2>&1 
+	dfx canister --network sodium create reversi
+	dfx canister --network sodium create reversi_assets
+	dfx build --network sodium --all
+	dfx canister --network sodium install --all --mode reinstall
+	@echo Please visit https://$$(dfx canister --network sodium id reversi_asserts).ic0.app to play the reversi game!

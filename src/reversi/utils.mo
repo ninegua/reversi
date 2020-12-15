@@ -10,17 +10,19 @@ import Text "mo:base/Text";
 
 import Game "./game";
 
-type Iter<T> = Iter.Iter<T>;
-type GameState = Types.GameState;
-type GameView = Types.GameView;
-type PlayerId = Types.PlayerId;
-type PlayerName = Types.PlayerName;
-type PlayerState = Types.PlayerState;
-type PlayerView = Types.PlayerView;
-type Score = Types.Score;
+module {
+
+public type Iter<T> = Iter.Iter<T>;
+public type GameState = Types.GameState;
+public type GameView = Types.GameView;
+public type PlayerId = Types.PlayerId;
+public type PlayerName = Types.PlayerName;
+public type PlayerState = Types.PlayerState;
+public type PlayerView = Types.PlayerView;
+public type Score = Types.Score;
 
 // Convert text to lower case
-func to_lowercase(name: Text) : Text {
+public func to_lowercase(name: Text) : Text {
   var str = "";
   for (c in Text.toIter(name)) {
     let ch = if ('A' <= c and c <= 'Z') { Prim.word32ToChar(Prim.charToWord32(c) + 32) } else { c };
@@ -30,7 +32,7 @@ func to_lowercase(name: Text) : Text {
 };
 
 // Text equality check ignoring cases.
-func eq_nocase(s: Text, t: Text) : Bool {
+public func eq_nocase(s: Text, t: Text) : Bool {
   let m = s.size();
   let n = t.size();
   m == n and to_lowercase(s) == to_lowercase(t)
@@ -39,7 +41,7 @@ func eq_nocase(s: Text, t: Text) : Bool {
 // Check if player name is valid, which is defined as:
 // 1. Between 3 and 10 characters long
 // 2. Alphanumerical. Special characters like  '_' and '-' are also allowed.
-func valid_name(name: Text): Bool {
+public func valid_name(name: Text): Bool {
   let str : [Char] = Iter.toArray(Text.toIter(name));
   if (str.size() < 3 or str.size() > 10) {
     return false;
@@ -57,12 +59,12 @@ func valid_name(name: Text): Bool {
 };
 
 // Two games are the same if their player names match.
-func same_game(game_A: GameState, game_B: GameState) : Bool {
+public func same_game(game_A: GameState, game_B: GameState) : Bool {
   (game_A.black.1 == game_B.black.1 and game_A.white.1 == game_B.white.1)
 };
 
 // Reset a game to initial state.
-func reset_game(game: GameState) {
+public func reset_game(game: GameState) {
     let N = game.dimension;
     let M = N / 2;
     let blacks = [ (M - 1, M), (M, M - 1) ];
@@ -81,16 +83,16 @@ func reset_game(game: GameState) {
 };
 
 // Return player level, which is just the number of digits in the player score (base10).
-func get_level(score: Nat) : Nat {
+public func get_level(score: Nat) : Nat {
   let str = Nat.toText(score);
   str.size()
 };
 
-func player_state_to_view(player: PlayerState): PlayerView {
+public func player_state_to_view(player: PlayerState): PlayerView {
   { name = player.name; score = player.score; }
 };
 
-func game_state_to_view(game: GameState): GameView {
+public func game_state_to_view(game: GameState): GameView {
   let (black_id, black_name) = game.black;
   let (white_id, white_name) = game.white;
   {
@@ -104,7 +106,7 @@ func game_state_to_view(game: GameState): GameView {
   }
 };
 
-func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score_: Score) {
+public func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score_: Score) {
   let N = top_players.size();
   // we first remove this player from the list if already exists
   label outer for (i in Iter.range(0, N - 1)) {
@@ -145,7 +147,7 @@ func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score
   }
 };
 
-func update_fifo_player_list(fifo_players: [var PlayerName], name: PlayerName) {
+public func update_fifo_player_list(fifo_players: [var PlayerName], name: PlayerName) {
   let N = fifo_players.size();
   func remove(names: [var PlayerName], name: PlayerName) {
     for (i in Iter.range(0, N - 1)) {
@@ -171,9 +173,9 @@ func update_fifo_player_list(fifo_players: [var PlayerName], name: PlayerName) {
   add(fifo_players, name);
 };
 
-let update_recent_players = update_fifo_player_list;
+public let update_recent_players = update_fifo_player_list;
 
-func update_available_players(available_players: [var PlayerName], name: PlayerName, available: Bool) {
+public func update_available_players(available_players: [var PlayerName], name: PlayerName, available: Bool) {
   let N = available_players.size();
   if (not available) {
     for (i in Iter.range(0, N - 1)) {
@@ -190,7 +192,7 @@ func update_available_players(available_players: [var PlayerName], name: PlayerN
   }
 };
 
-func init_top_players(players: Iter<PlayerState>) : [var ?PlayerView] {
+public func init_top_players(players: Iter<PlayerState>) : [var ?PlayerView] {
    let top_players = Array.init<?PlayerView>(10, null);
    Iter.iterate<PlayerState>(players, func(player, _) {
      update_top_players(top_players, player.name, player.score)
@@ -198,4 +200,4 @@ func init_top_players(players: Iter<PlayerState>) : [var ?PlayerView] {
    top_players
 };
 
-
+}

@@ -7,14 +7,16 @@ import Result "mo:base/Result";
 import Game "./game";
 import Text "mo:base/Text";
 
-type Result<T,E> = Result.Result<T,E>;
-type PlayerId = Principal;
-type PlayerName = Text;
-type Score = Nat;
+module {
+
+public type Result<T,E> = Result.Result<T,E>;
+public type PlayerId = Principal;
+public type PlayerName = Text;
+public type Score = Nat;
 
 // func t(x: Result<(), ()>) : ()  { Result.unwrapOk(x) };
 
-type MoveResult = {
+public type MoveResult = {
   #GameNotFound;
   #GameNotStarted;
   #InvalidCoordinate;
@@ -26,36 +28,36 @@ type MoveResult = {
   #OK;
 };
 
-type PlayerState = {
+public type PlayerState = {
   name: PlayerName;
   var score: Score;
 };
 
-type PlayerView = {
+public type PlayerView = {
   name: PlayerName;
   score: Score;
 };
 
-type Players = {
+public type Players = {
   id_map: HashMap.HashMap<PlayerId, PlayerState>;
   name_map: HashMap.HashMap<PlayerName, PlayerId>;
 };
 
-type ListResult = {
+public type ListResult = {
   top: [PlayerView];
   recent: [PlayerView];
   available: [PlayerView];
 };
 
-type RegistrationError = {
+public type RegistrationError = {
   #InvalidName;
   #NameAlreadyExists;
 };
 
 // History of valid moves. The use of Nat8 here implies the max dimension is 8.
-type Moves = Buffer.Buffer<Nat8>;
+public type Moves = Buffer.Buffer<Nat8>;
 
-type GameState = {
+public type GameState = {
   dimension: Nat;
   board: Game.Board;
   moves: Moves;
@@ -65,7 +67,7 @@ type GameState = {
   var result: ?Game.ColorCount;
 };
 
-type GameView = {
+public type GameView = {
   dimension: Nat;
   board: Text;
   moves: [Nat8];
@@ -75,11 +77,13 @@ type GameView = {
   result: ?Game.ColorCount;
 };
 
-type Games = Buffer.Buffer<GameState>;
+public type Games = Buffer.Buffer<GameState>;
 
-type StartError = {
+public type StartError = {
   #InvalidOpponentName;
   #PlayerNotFound;
   #NoSelfGame;
   #OpponentInAnotherGame;
 };
+
+}
