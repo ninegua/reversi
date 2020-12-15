@@ -89,4 +89,4 @@ sodium-install:
 	dfx canister --network sodium create reversi_assets
 	dfx build --network sodium --all
 	dfx canister --network sodium install --all --mode reinstall
-	@echo Please visit https://$$(dfx canister --network sodium id reversi_asserts).ic0.app to play the reversi game!
+	@echo Please visit https://$$(dfx canister --network sodium id reversi_assets).ic0.app to play the reversi game!
