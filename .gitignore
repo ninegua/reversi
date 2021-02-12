@@ -13,5 +13,9 @@ canisters/
 # dfx temporary files
 .dfx/
 
+# dfx distribution files
+dist/
+canister_ids.json
+
 # frontend code
 node_modules/
