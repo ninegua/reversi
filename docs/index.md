@@ -8,7 +8,7 @@ I chose to build a version of [reversi], a strategy board game for two players -
 
 Before I dive into the technical details behind the scene, I'd like to focus on the high-level concept: a virtual environment where internet applications seamlessly connect to each other.
 My personal belief is that with the evolution of cloud computing, infrastructure will become a commodity.
-In other words, it no longer matters who who provides the infrastructure. What matters is:
+In other words, it no longer matters who provides the infrastructure. What matters is:
 
 > you write an application, and it runs on the internet.
 
@@ -35,7 +35,7 @@ Just to highlight two properties (out of many) that make the canister model dist
 - **Bi-directional messaging**: A message is delivered at most once, and the message caller is always guaranteed a reply, either success or failure.
 
 Such guarantees are hard to come by without restricting what a user program can do.
-Hopefully by the end of reading this post, you'll agree with me that a restricted canister model actually accomplishes a lot by find the sweet spot between efficiency, robustness and simplicity.
+Hopefully by the end of reading this post, you'll agree with me that a restricted canister model actually accomplishes a lot by finding the sweet spot between efficiency, robustness and simplicity.
 
 # Client-server architecture
 
