@@ -1,5 +1,44 @@
-import reversi from "ic:canisters/reversi";
-import reversi_assets from "ic:canisters/reversi_assets";
+import { Ed25519KeyIdentity } from "@dfinity/authentication";
+import { Actor, HttpAgent } from "@dfinity/agent";
+import {
+  idlFactory as reversi_idl,
+  canisterId as reversi_id
+} from "dfx-generated/reversi";
+import {
+  idlFactory as reversi_assets_idl,
+  canisterId as reversi_assets_id
+} from "dfx-generated/reversi_assets";
+
+function newIdentity() {
+  const entropy = crypto.getRandomValues(new Uint8Array(32));
+  const identity = Ed25519KeyIdentity.generate(entropy);
+  localStorage.setItem("reversi_id", JSON.stringify(identity));
+  return identity;
+}
+
+function readIdentity() {
+  const stored = localStorage.getItem("reversi_id");
+  if (!stored) {
+    return newIdentity();
+  }
+  try {
+    return Ed25519KeyIdentity.fromJSON(stored);
+  } catch (error) {
+    console.log(error);
+    return newIdentity();
+  }
+}
+
+const agent = new HttpAgent({ identity: readIdentity() });
+const reversi = Actor.createActor(reversi_idl, {
+  agent,
+  canisterId: reversi_id
+});
+const reversi_assets = Actor.createActor(reversi_assets_idl, {
+  agent,
+  canisterId: reversi_assets_id
+});
+
 import { valid_move, set_and_flip, replay } from "./game.js";
 import { get_error_message, set_error, clear_error } from "./error.js";
 import {
@@ -19,6 +58,12 @@ document.title = "Reversi Game on IC";
 
 // The refresh timeout is global, because we want to stop it in non-game compnent too.
 var refreshTimeout = null;
+
+function toJSON(obj) {
+  return JSON.stringify(obj, (key, value) =>
+    typeof value === "bigint" ? value.toString() : value
+  );
+}
 
 // Main game UI component.
 function Game() {
@@ -44,7 +89,7 @@ function Game() {
           if (game.moves.length > last_move_length) {
             // handle new moves
             let opponent_piece = "white" in player_color ? "*" : "O";
-            const N = game.dimension.toNumber();
+            const N = Number(game.dimension);
             while (last_move_length < game.moves.length) {
               play_put_sound();
               const idx = game.moves[last_move_length];
@@ -83,7 +128,7 @@ function Game() {
               return;
             } else {
               // reset game when player name has changed
-              const N = game.dimension.toNumber();
+              const N = Number(game.dimension);
               var board = replay(N, game.moves);
               boards = [{ row: -1, col: -1, board: board }];
               m.redraw();
@@ -105,14 +150,14 @@ function Game() {
     reversi
       .start(opponent)
       .then(function(res) {
-        //console.log("start res = " + JSON.stringify(res));
+        //console.log("start res = " + toJSON(res));
         if ("ok" in res) {
           game = res["ok"];
-          const N = game.dimension.toNumber();
+          const N = Number(game.dimension);
           var board = replay(N, game.moves);
           boards.push({ row: -1, col: -1, board: board });
           last_move_length = game.moves.length;
-          //console.log("start game " + JSON.stringify(game));
+          //console.log("start game " + toJSON(game));
           player_color = game.white[1] == player ? white : black;
           next_color = game.next;
           m.redraw();
@@ -138,12 +183,12 @@ function Game() {
   };
 
   var next_move = function(evt) {
-    const dimension = game.dimension.toNumber();
+    const dimension = Number(game.dimension);
     const idx = parseInt(evt.target.id);
     const row = Math.floor(idx / dimension);
     const col = idx % dimension;
     play_put_sound();
-    console.log(JSON.stringify(player_color) + " move " + row + ", " + col);
+    console.log(toJSON(player_color) + " move " + row + ", " + col);
     const piece = "white" in player_color ? "O" : "*";
     var board = boards[boards.length - 1].board;
     if (
@@ -161,7 +206,7 @@ function Game() {
           if ("OK" in res || "Pass" in res || "GameOver" in res) {
           } else {
             console.log("Unhandled game error, should not have happened!");
-            console.log(JSON.stringify(res));
+            console.log(toJSON(res));
           }
         })
         .catch(function(err) {
@@ -210,7 +255,7 @@ function make_player_list(players, ordered) {
       "li",
       m(m.route.Link, { href: "/play?opponent=" + player.name }, [
         player.name + "(",
-        m("span.player-score", player.score.toNumber()),
+        m("span.player-score", Number(player.score)),
         ")"
       ])
     );
@@ -334,7 +379,7 @@ function Play() {
   var opponent_name = null;
   var set_player_info = function(info) {
     player_name = info["name"];
-    player_score = info["score"].toNumber();
+    player_score = Number(info["score"]);
   };
   var set_tips_on = function() {
     tips_on = true;
@@ -358,7 +403,7 @@ function Play() {
       .register("")
       .then(function(res) {
         inited = true;
-        console.log("Registered: " + JSON.stringify(res));
+        console.log("Registered: " + toJSON(res));
         if ("ok" in res) {
           set_player_info(res["ok"]);
         }
@@ -477,7 +522,7 @@ function Play() {
     }
   };
 }
-
+//m.route.prefix = "/?host=https://mercury.dfinity.network#"
 m.route(document.body, "/play", {
   "/play": Play,
   "/game/:player/:against": Game

@@ -85,8 +85,13 @@ $(ASSETS_TARGET) $(JS_TARGET) : $(CANISTER_IDS) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(
 
 sodium-install:
 	npm install > /dev/null 2>&1 
-	dfx canister --network sodium create reversi
-	dfx canister --network sodium create reversi_assets
+	dfx canister --no-wallet --network sodium create reversi
+	dfx canister --no-wallet --network sodium create reversi_assets
 	dfx build --network sodium --all
-	dfx canister --network sodium install --all --mode reinstall
+	dfx canister --no-wallet --network sodium install --all --mode reinstall
 	@echo Please visit https://$$(dfx canister --network sodium id reversi_assets).ic0.app to play the reversi game!
+
+mainnet-install:
+	npm install > /dev/null 2>&1 
+	dfx deploy --network=mainnet --with-cycles=5000000000000
+	@echo Please visit https://$$(dfx canister --network mainnet id reversi_assets).ic0.app to play the reversi game!

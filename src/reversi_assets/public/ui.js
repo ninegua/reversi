@@ -15,7 +15,7 @@ export function load_put_sound(reversi_assets) {
   if (putsound === null) {
     putsound = {}; // avoid loading it twice
     reversi_assets
-      .retrieve("put.mp3")
+      .retrieve("/put.mp3")
       .then(function(array) {
         let buffer = new Uint8Array(array);
         var context = new AudioContext();
@@ -76,7 +76,7 @@ export function Board(
   const black_id = game["black"][0];
   const white_player = game["white"][1];
   const black_player = game["black"][1];
-  const dimension = game.dimension.toNumber();
+  const dimension = Number(game.dimension);
   const last = boards.length > 1 ? boards[0].board : null;
   const board = boards.length > 1 ? boards[1].board : boards[0].board;
   const animate_list = [];
@@ -296,9 +296,9 @@ export function Board(
           "text-anchor": "middle"
         },
         [
-          m("tspan", { fill: "black" }, game.result[0]["black"].toNumber()),
+          m("tspan", { fill: "black" }, Number(game.result[0]["black"])),
           "   :   ",
-          m("tspan", { fill: "white" }, game.result[0]["white"].toNumber())
+          m("tspan", { fill: "white" }, Number(game.result[0]["white"]))
         ]
       )
     );

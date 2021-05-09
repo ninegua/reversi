@@ -25,7 +25,7 @@ public type Score = Types.Score;
 public func to_lowercase(name: Text) : Text {
   var str = "";
   for (c in Text.toIter(name)) {
-    let ch = if ('A' <= c and c <= 'Z') { Prim.word32ToChar(Prim.charToWord32(c) + 32) } else { c };
+    let ch = if ('A' <= c and c <= 'Z') { Prim.charToLower(c) } else { c };
     str := str # Prim.charToText(ch);
   };
   str
