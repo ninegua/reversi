@@ -67,8 +67,8 @@ public func same_game(game_A: GameState, game_B: GameState) : Bool {
 public func reset_game(game: GameState) {
     let N = game.dimension;
     let M = N / 2;
-    let blacks = [ (M - 1, M), (M, M - 1) ];
-    let whites = [ (M - 1, M - 1), (M, M) ];
+    let blacks : [(Nat,Nat)] = [ (M - 1, M), (M, M - 1) ];
+    let whites : [(Nat,Nat)] = [ (M - 1, M - 1), (M, M) ];
     Game.init_board(N, game.board, blacks, whites);
     game.moves.clear();
     let add_move = func ((row: Nat, col: Nat)) {

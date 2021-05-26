@@ -297,7 +297,7 @@ actor {
             points * player_level / opponent_level
           }
         };
-        let bonus = 2 * N * N - result.black - result.white;
+        let bonus : Nat = 2 * N * N - result.black - result.white;
         let set_score =
           func (player: PlayerState, points: Int, player_level: Nat, opponent_level: Nat) {
             let delta = compute_score(points, player_level, opponent_level);

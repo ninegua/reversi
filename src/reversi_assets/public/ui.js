@@ -14,12 +14,13 @@ export function play_put_sound() {
 export function load_put_sound(reversi_assets) {
   if (putsound === null) {
     putsound = {}; // avoid loading it twice
-    reversi_assets
-      .retrieve("/put.mp3")
-      .then(function(array) {
-        let buffer = new Uint8Array(array);
+    fetch("/put.mp3")
+      .then(function(response) {
+        return response.arrayBuffer();
+      })
+      .then(function(buffer) {
         var context = new AudioContext();
-        context.decodeAudioData(buffer.buffer, function(res) {
+        context.decodeAudioData(buffer, function(res) {
           //console.log("Audio is loaded");
           putsound = { buffer: res, context: context };
         });
