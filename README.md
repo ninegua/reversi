@@ -7,6 +7,8 @@ Users can communicate with this canister by sending messages, which are just asy
 
 ![Reversi Screenshots](./docs/screenshots.png)
 
+**Play it at https://ivg37-qiaaa-aaaab-aaaga-cai.ic0.app**
+
 ## Backend
 
 The game backend is written in [Motoko].
