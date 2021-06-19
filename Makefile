@@ -85,9 +85,9 @@ $(ASSETS_TARGET) $(JS_TARGET) : $(CANISTER_IDS) $(MO_SRC) $(JS_SRC) $(JS_CFG) $(
 
 mainnet-install:
 	npm install > /dev/null 2>&1 
-	dfx deploy --network=mainnet --with-cycles=5000000000000
-	@echo Please visit https://$$(dfx canister --network mainnet id reversi_assets).ic0.app to play the reversi game!
+	dfx deploy --network=ic --with-cycles=5000000000000
+	@echo Please visit https://$$(dfx canister --network=ic id reversi_assets).ic0.app to play the reversi game!
 
 mainnet-update:
-	dfx deploy --network=mainnet
-	@echo Please visit https://$$(dfx canister --network mainnet id reversi_assets).ic0.app to play the reversi game!
+	dfx deploy --network=ic
+	@echo Please visit https://$$(dfx canister --network=ic id reversi_assets).ic0.app to play the reversi game!

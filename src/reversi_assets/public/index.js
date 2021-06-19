@@ -1,4 +1,4 @@
-import { Ed25519KeyIdentity } from "@dfinity/authentication";
+import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import {
   idlFactory as reversi_idl,
