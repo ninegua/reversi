@@ -6,6 +6,8 @@ I chose to build a version of [reversi], a strategy board game for two players -
 
 ![Reversi Screenshots](./screenshots.png)
 
+**Play it live at https://ivg37-qiaaa-aaaab-aaaga-cai.ic0.app**
+
 Before I dive into the technical details behind the scene, I'd like to focus on the high-level concept: a virtual environment where internet applications seamlessly connect to each other.
 My personal belief is that with the evolution of cloud computing, infrastructure will become a commodity.
 In other words, it no longer matters who provides the infrastructure. What matters is:
