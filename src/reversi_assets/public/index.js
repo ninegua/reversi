@@ -420,6 +420,9 @@ function Play() {
   };
 
   var init_play = async function () {
+    if (!inited) {
+      //await agent.fetchRootKey();
+    }
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
     }
