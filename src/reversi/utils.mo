@@ -17,7 +17,7 @@ public type GameState = Types.GameState;
 public type GameView = Types.GameView;
 public type PlayerId = Types.PlayerId;
 public type PlayerName = Types.PlayerName;
-public type PlayerState = Types.PlayerState;
+public type PlayerState = Types.PlayerStateV2;
 public type PlayerView = Types.PlayerView;
 public type Score = Types.Score;
 

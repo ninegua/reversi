@@ -28,8 +28,14 @@ public type MoveResult = {
   #OK;
 };
 
-public type PlayerState = {
+public type PlayerStateV1 = {
   name: PlayerName;
+  var score: Score;
+};
+
+public type PlayerStateV2 = {
+  name: PlayerName;
+  ids: [PlayerId];
   var score: Score;
 };
 
@@ -38,9 +44,12 @@ public type PlayerView = {
   score: Score;
 };
 
+public type IdMap = HashMap.HashMap<PlayerId, PlayerName>;
+public type NameMap = HashMap.HashMap<PlayerName, PlayerStateV2>;
+
 public type Players = {
-  id_map: HashMap.HashMap<PlayerId, PlayerState>;
-  name_map: HashMap.HashMap<PlayerName, PlayerId>;
+  id_map: IdMap;
+  name_map: NameMap;
 };
 
 public type ListResult = {
@@ -87,3 +96,4 @@ public type StartError = {
 };
 
 }
+

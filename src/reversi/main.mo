@@ -10,6 +10,7 @@ import Prim "mo:prim";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
+import Time "mo:base/Time";
 
 import Game "./game";
 import Types "./types";
@@ -21,64 +22,89 @@ actor {
   type Players = Types.Players;
   type PlayerId = Types.PlayerId;
   type PlayerName = Types.PlayerName;
-  type PlayerState = Types.PlayerState;
+  type PlayerStateV1 = Types.PlayerStateV1;
+  type PlayerState = Types.PlayerStateV2;
   type PlayerView = Types.PlayerView;
   type Games = Types.Games;
   type GameState = Types.GameState;
   type GameView = Types.GameView;
+  type IdMap = Types.IdMap;
+  type NameMap = Types.NameMap;
 
   // We use stable var to help keeping player data through upgrades.
   // This is necessary at the moment because HashMap cannot be made stable.
   // We also forego the requirement of persisting games, which is not as
   // crucial as keeping player accounts and scores.
-  stable var accounts : [(PlayerId, PlayerState)] = [];
+  stable var accounts : [(PlayerId, PlayerStateV1)] = [];
+  stable var accounts_v2 : [PlayerState] = [];
+
+  func allAccounts() : [PlayerState] {
+    Array.append(
+      accounts_v2,
+      Array.map(accounts,
+        func ((id, state): (PlayerId, PlayerStateV1)): PlayerState {
+          { name = state.name; ids = [id]; var score = state.score }
+        }
+      )
+    )
+  };
+
+  func allAccountsSize() : Nat {
+    accounts.size() + accounts_v2.size()
+  };
 
   // Before upgrade, we must dump all player data to stable accounts.
   system func preupgrade() {
-    accounts := Iter.toArray(players.id_map.entries());
+    accounts := [];
+    accounts_v2 := Iter.toArray(Iter.map(
+                  players.name_map.entries(), 
+                  func (x: (PlayerName, PlayerState)) : PlayerState { x.1 }
+                ));
   };
 
 
   // Player database is initiated from the stable accounts.
   let players : Players = {
-    id_map = HashMap.fromIter<PlayerId, PlayerState>(
-      accounts.vals(), accounts.size(), func (x, y) { x == y }, Principal.hash
+    id_map : IdMap = Array.foldLeft(
+      allAccounts(),
+      HashMap.HashMap<PlayerId, PlayerName>(
+        allAccountsSize(), func (x, y) { x == y }, Principal.hash
+      ),
+      func(m: IdMap, state: PlayerState) : IdMap {
+        for (id in state.ids.vals()) {
+          m.put(id, state.name)
+        };
+        m
+      }
     );
-    name_map = HashMap.fromIter<PlayerName, PlayerId>(
-      Iter.map<(PlayerId, PlayerState), (PlayerName, PlayerId)>(
-        accounts.vals(), func ((id, state)) { (Utils.to_lowercase(state.name), id) }
-      ), accounts.size(), func (x, y) { x == y }, Text.hash
+    name_map : NameMap = HashMap.fromIter<PlayerName, PlayerState>(
+      Iter.map<PlayerState, (PlayerName, PlayerState)>(
+        allAccounts().vals(),
+        func(state: PlayerState): (PlayerName, PlayerState) {
+          (state.name, state)
+        }),
+      allAccountsSize(),
+      func (x, y) { x == y }, Text.hash
     );
   };
 
-  let top_players : [var ?PlayerView] =
-    Utils.init_top_players(
-      Iter.map<(PlayerId, PlayerState), PlayerState>(
-        accounts.vals(),
-        func (x) { x.1 }
-    ));
+  let top_players : [var ?PlayerView] = Utils.init_top_players(allAccounts().vals());
   let recent_players : [var PlayerName] = Array.init<PlayerName>(10, "");
   let available_players : [var PlayerName] = Array.init<PlayerName>(10, "");
 
   func lookup_player_by_id(id: PlayerId) : ?PlayerState {
-    players.id_map.get(id)
-  };
-
-  func lookup_id_by_name(name: PlayerName) : ?PlayerId {
-    players.name_map.get(Utils.to_lowercase(name))
+    Option.chain(players.id_map.get(id), players.name_map.get)
   };
 
   func lookup_player_by_name(name: PlayerName) : ?PlayerState {
-    switch (lookup_id_by_name(name)) {
-      case null { null };
-      case (?id) { lookup_player_by_id(id) };
-    }
+    players.name_map.get(name)
   };
 
   func insert_new_player(id: PlayerId, name_: PlayerName) : PlayerState {
-    let player = { name = name_; var score = 0; };
-    players.id_map.put(id, player);
-    players.name_map.put(Utils.to_lowercase(name_), id);
+    let player_name = Utils.to_lowercase(name_);
+    let player = { name = player_name; ids = [id]; var score = 0 };
+    players.name_map.put(player_name, player);
+    players.id_map.put(id, player_name);
     player
   };
 
@@ -95,7 +121,7 @@ actor {
       };
       case (_, false) (#err(#InvalidName));
       case (null, true) {
-        switch (lookup_id_by_name(name)) {
+        switch (lookup_player_by_name(name)) {
           case null {
               let player = insert_new_player(player_id, name);
               Utils.update_recent_players(recent_players, name);
@@ -113,14 +139,8 @@ actor {
   func lookup_game_by_id(player_id: PlayerId): ?GameState {
     for (i in Iter.range(0, games.size()-1)) {
       let game = games.get(i);
-      switch (game.black.0, game.white.0) {
-        case (?black_id, ?white_id) {
-          if (black_id == player_id or white_id == player_id) { return ?game; }
-        };
-        case (?black_id, null) { if (black_id == player_id) { return ?game; } };
-        case (null, ?white_id) { if (white_id == player_id) { return ?game; } };
-        case (null, null) {};
-      }
+      if (game.black.0 == ?player_id) { return ?game };
+      if (game.white.0 == ?player_id) { return ?game };
     };
     null
   };
@@ -169,6 +189,10 @@ actor {
     };
     Utils.game_state_to_view(game)
   };
+
+  // Invite a player to a game
+  // public shared (msg) func invite(opponent_name: Text): async Result<GameView, Types.StartError> {
+  // };
 
   // Start a game with opponent. Rules are:
   // 1. A player can only start one game at any time.
@@ -316,7 +340,7 @@ actor {
     }
   };
 
-  // List top/recent/available players.
+  // List (my) pending games, and top/recent/available players.
   public query func list(): async Types.ListResult {
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
       Array.map<?PlayerView, PlayerView>(
@@ -332,7 +356,7 @@ actor {
     let count_until = func<A>(arr: [var A], f: A -> Bool) : Nat {
        var n = 0;
        for (i in Iter.range(0, arr.size() - 1)) {
-         if (f(arr[i])) { return n; };
+         if (f(arr[i])) { return n };
          n := n + 1;
        };
        return n;
