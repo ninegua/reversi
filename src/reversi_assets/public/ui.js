@@ -64,6 +64,10 @@ const boardLength =
 
 var animateTimeout = null;
 
+export function get_player_name(player) {
+  return player.PlayerName ? player.PlayerName : player.Player[1].name;
+}
+
 // Draw the board in SVG.
 export function Board(
   message,
@@ -74,10 +78,8 @@ export function Board(
   onClick,
   onDismiss
 ) {
-  const white_id = game["white"][0];
-  const black_id = game["black"][0];
-  const white_player = game["white"][1];
-  const black_player = game["black"][1];
+  const white_player = get_player_name(game.white);
+  const black_player = get_player_name(game.black);
   const dimension = Number(game.dimension);
   const last = boards.length > 1 ? boards[0].board : null;
   const board = boards.length > 1 ? boards[1].board : boards[0].board;

@@ -59,6 +59,7 @@ import {
   opponent_color,
   play_put_sound,
   load_put_sound,
+  get_player_name,
 } from "./ui.js";
 import "./style.css";
 import logo from "./logo.png";
@@ -123,8 +124,8 @@ function Game() {
             expiring = new Date();
             m.redraw();
           }
-          let black_name = game ? game["black"][1] : null;
-          let white_name = game ? game["white"][1] : null;
+          let black_name = game ? get_player_name(game.black) : null;
+          let white_name = game ? get_player_name(game.white) : null;
           game = res[0];
           if (game.moves.length > last_move_length) {
             // handle new moves
@@ -158,10 +159,13 @@ function Game() {
             next_color = game.next;
             m.redraw();
           } else if (
-            black_name != game["black"][1] ||
-            white_name != game["white"][1]
+            !black_name.equalIgnoreCase(get_player_name(game.black)) ||
+            !white_name.equalIgnoreCase(get_player_name(game.white))
           ) {
-            if (game["white"][1] == "" || game["black"][1] == "") {
+            if (
+              get_player_name(game.white) == "" ||
+              get_player_name(game.black) == ""
+            ) {
               // player left, we'll terminate
               set_error("GameCancelled");
               start_loading();
@@ -200,7 +204,9 @@ function Game() {
           boards.push({ row: -1, col: -1, board: board });
           last_move_length = game.moves.length;
           //console.log("start game " + toJSON(game));
-          player_color = game.white[1] == player ? white : black;
+          player_color = player.equalIgnoreCase(get_player_name(game.white))
+            ? white
+            : black;
           next_color = game.next;
           m.redraw();
           refresh();
@@ -369,72 +375,78 @@ function Tips() {
         // console.log("refresh_list");
         // console.log(res);
         games = [];
-        function toplay(name, text) {
+        function render_name(player, color) {
+          return player.PlayerName
+            ? [m("span." + color + "-name", player.PlayerName)]
+            : [
+                m("span." + color + "-name", player.Player[1].name),
+                "(",
+                m("span.player-score", player.Player[1].score),
+                ")",
+              ];
+        }
+        function render_play(player, content) {
           return m(
             m.route.Link,
-            { href: "/game/" + player_name + "/." + name },
-            [text]
+            {
+              href:
+                "/game/" +
+                player_name +
+                "/." +
+                (player.PlayerName ? player.PlayerName : player.Player[1].name),
+            },
+            content
           );
         }
         for (var i = 0; i < res.games.length; i++) {
           let game = res.games[i];
-          if (!game.expiring && player_name) {
+          if (!game.expiring && player_name && game.result.length == 0) {
             if (
-              game.black[0].length > 0 &&
-              game.black[0][0].toHex() == player_id &&
-              game.white[1]
+              game.black.Player &&
+              game.black.Player[0].toHex() == player_id
             ) {
-              games.push([
-                m("div.game", [
-                  m("span.black-name", "You"),
-                  " are playing against ",
-                  m("span.white-name", game.white[1]),
-                  ", ",
-                  toplay(game.white[1], "rejoin?"),
-                ]),
-              ]);
+              games.push(
+                m("div", [
+                  render_play(game.white, [
+                    m("span.black-name", "You"),
+                    " are playing against ",
+                    ...render_name(game.white, "white"),
+                    ", rejoin?",
+                  ]),
+                ])
+              );
             } else if (
-              game.white[0].length > 0 &&
-              game.white[0][0].toHex() == player_id &&
-              game.black[1]
+              game.white.Player &&
+              game.white.Player[0].toHex() == player_id
             ) {
-              games.push([
-                m("div.game", [
-                  m("span.white-name", "You"),
-                  " are playing against ",
-                  m("span.black-name", game.black[1]),
-                  ", ",
-                  toplay(game.black[1], "rejoin?"),
-                ]),
-              ]);
-            } else if (
-              game.black[0].length == 0 &&
-              player_name.equalIgnoreCase(game.black[1]) &&
-              game.white[1]
-            ) {
-              games.push([
-                m("div.game", [
-                  m("span.white-name", game.white[1]),
-                  " invites ",
-                  m("span.black-name", "you"),
-                  " to play, ",
-                  toplay(game.white[1], "join?"),
-                ]),
-              ]);
-            } else if (
-              game.white[0].length == 0 &&
-              player_name.equalIgnoreCase(game.white[1]) &&
-              game.black[1]
-            ) {
-              games.push([
-                m("div.game", [
-                  m("span.black-name", game.black[1]),
-                  " invites ",
-                  m("span.white-name", "you"),
-                  " to play, ",
-                  toplay(game.black[1], "join?"),
-                ]),
-              ]);
+              games.push(
+                m("div", [
+                  render_play(game.black, [
+                    m("span.white-name", "You"),
+                    " are playing against ",
+                    ...render_name(game.black, "black"),
+                    ", rejoin?",
+                  ]),
+                ])
+              );
+            } else if (player_name.equalIgnoreCase(game.black.PlayerName)) {
+              games.push(
+                m("div", [
+                  render_play(game.white, [
+                    ...render_name(game.white, "white"),
+                    " invites you to play, join?",
+                  ]),
+                ])
+              );
+            } else if (player_name.equalIgnoreCase(game.white.PlayerName)) {
+              games.push(
+                m("div", [
+                  render_play(game.black, [
+                    ...render_name(game.black, "black"),
+                    " invites you to play, join?",
+                  ]),
+                ])
+              );
             }
           }
         }

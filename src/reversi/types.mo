@@ -79,12 +79,17 @@ public type GameState = {
   var last_updated: Time.Time;
 };
 
+public type GamePlayer = {
+  #Player: (PlayerId, PlayerView);
+  #PlayerName: PlayerName;
+};
+
 public type GameView = {
   dimension: Nat;
   board: Text;
   moves: [Nat8];
-  black: (?PlayerId, PlayerName);
-  white: (?PlayerId, PlayerName);
+  black: GamePlayer;
+  white: GamePlayer;
   next: Game.Color;
   result: ?Game.ColorCount;
   expiring: Bool;

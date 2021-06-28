@@ -27,6 +27,7 @@ actor {
   type PlayerView = Types.PlayerView;
   type Games = Types.Games;
   type GameState = Types.GameState;
+  type GamePlayer = Types.GamePlayer;
   type GameView = Types.GameView;
   type IdMap = Types.IdMap;
   type NameMap = Types.NameMap;
@@ -98,6 +99,31 @@ actor {
 
   func lookup_player_by_name(name: PlayerName) : ?PlayerState {
     players.name_map.get(name)
+  };
+
+  func game_state_to_view(game: GameState, ): GameView {
+    func to_gameplayer(player: (?PlayerId, PlayerName)) : GamePlayer {
+       switch (player.0) {
+         case null (#PlayerName(player.1));
+         case (?player_id) {
+           switch (lookup_player_by_id(player_id)) {
+             case null (#PlayerName(player.1));
+             case (?player) (#Player(player_id, Utils.player_state_to_view(player)));
+           }
+         }
+       }
+    };
+
+    {
+      black = to_gameplayer(game.black);
+      white = to_gameplayer(game.white);
+      board = Game.render_board(game.dimension, game.board);
+      moves = game.moves.toArray();
+      dimension = game.dimension;
+      next = game.next;
+      result = game.result;
+      expiring = game.last_updated + Utils.game_expiring_nanosecs < Time.now();
+    }
   };
 
   func insert_new_player(id: PlayerId, name_: PlayerName) : PlayerState {
@@ -215,7 +241,7 @@ actor {
     if (Option.isSome(game.white.0)) {
       Utils.update_available_players(available_players, game.white.1, true);
     };
-    Utils.game_state_to_view(game)
+    game_state_to_view(game)
   };
 
   // Invite a player to a game
@@ -409,14 +435,14 @@ actor {
       available = names_to_view(available_players, n_available);
       games = Array.map(
         Option.getMapped(player_name, lookup_games_by_name, []),
-        Utils.game_state_to_view);
+        game_state_to_view);
     }
   };
 
   // External interface to view the state of an on-going game.
   public shared query (msg) func view() : async ?GameView {
       let player_id = msg.caller;
-      Option.map(lookup_game_by_id(player_id), Utils.game_state_to_view)
+      Option.map(lookup_game_by_id(player_id), game_state_to_view)
   };
 
   // External interface that places a piece of given color at a coordinate.

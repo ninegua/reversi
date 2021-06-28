@@ -16,6 +16,7 @@ module {
 // Game with no movement will expire.
 public let game_expired_nanosecs = 600000000000; // 10 minutes
 public let game_expiring_nanosecs = 540000000000; // 9 minutes
+
 public type Iter<T> = Iter.Iter<T>;
 public type GameState = Types.GameState;
 public type GameView = Types.GameView;
@@ -94,19 +95,6 @@ public func get_level(score: Nat) : Nat {
 
 public func player_state_to_view(player: PlayerState): PlayerView {
   { name = player.name; score = player.score; }
-};
-
-public func game_state_to_view(game: GameState): GameView {
-  {
-    black = game.black;
-    white = game.white;
-    board = Game.render_board(game.dimension, game.board);
-    moves = game.moves.toArray();
-    dimension = game.dimension;
-    next = game.next;
-    result = game.result;
-    expiring = game.last_updated + game_expiring_nanosecs < Time.now();
-  }
 };
 
 public func update_top_players(top_players: [var ?PlayerView], name_: PlayerName, score_: Score) {
