@@ -97,11 +97,9 @@ public func player_state_to_view(player: PlayerState): PlayerView {
 };
 
 public func game_state_to_view(game: GameState): GameView {
-  let (black_id, black_name) = game.black;
-  let (white_id, white_name) = game.white;
   {
-    black = (Option.map<PlayerId, ()>(black_id, func(_): () { () }), black_name);
-    white = (Option.map<PlayerId, ()>(white_id, func(_): () { () }), white_name);
+    black = game.black;
+    white = game.white;
     board = Game.render_board(game.dimension, game.board);
     moves = game.moves.toArray();
     dimension = game.dimension;

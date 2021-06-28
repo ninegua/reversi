@@ -9,6 +9,14 @@ import {
   canisterId as reversi_assets_id,
 } from "dfx-generated/reversi_assets";
 
+String.prototype.equalIgnoreCase = function (str) {
+  return (
+    str != null &&
+    typeof str === "string" &&
+    this.toUpperCase() === str.toUpperCase()
+  );
+};
+
 function newIdentity() {
   const entropy = crypto.getRandomValues(new Uint8Array(32));
   const identity = Ed25519KeyIdentity.generate(entropy);
@@ -28,8 +36,9 @@ function readIdentity() {
     return newIdentity();
   }
 }
-
-const agent = new HttpAgent({ identity: readIdentity() });
+const identity = readIdentity();
+const player_id = identity.getPrincipal().toHex();
+const agent = new HttpAgent({ identity });
 
 const reversi = Actor.createActor(reversi_idl, {
   agent,
@@ -104,11 +113,11 @@ function Game() {
           m.route.set("/play");
         } else {
           if (expiring) {
-            if (expiring - new Date() > 1000 * 60) {
+            if (new Date() - expiring > 1000 * 60) {
               set_error("GameCancelled");
               start_loading();
               m.route.set("/play");
-              return
+              return;
             }
           } else if (game.expiring) {
             expiring = new Date();
@@ -253,6 +262,7 @@ function Game() {
     m.redraw();
   };
   return {
+    oninit: start_loading,
     onremove: function (vnode) {
       clearTimeout(refreshTimeout);
     },
@@ -349,14 +359,86 @@ function Tips() {
       ]),
     ],
   ];
+  var games = [];
   var charts = [];
 
   let refresh_list = function () {
     reversi
       .list()
       .then(function (res) {
-        //console.log("refresh_list");
-        //console.log(res);
+        // console.log("refresh_list");
+        // console.log(res);
+        games = [];
+        function toplay(name, text) {
+          return m(
+            m.route.Link,
+            { href: "/game/" + player_name + "/." + name },
+            [text]
+          );
+        }
+        for (var i = 0; i < res.games.length; i++) {
+          let game = res.games[i];
+          if (!game.expiring && player_name) {
+            if (
+              game.black[0].length > 0 &&
+              game.black[0][0].toHex() == player_id &&
+              game.white[1]
+            ) {
+              games.push([
+                m("div.game", [
+                  m("span.black-name", "You"),
+                  " are playing against ",
+                  m("span.white-name", game.white[1]),
+                  ", ",
+                  toplay(game.white[1], "rejoin?"),
+                ]),
+              ]);
+            } else if (
+              game.white[0].length > 0 &&
+              game.white[0][0].toHex() == player_id &&
+              game.black[1]
+            ) {
+              games.push([
+                m("div.game", [
+                  m("span.white-name", "You"),
+                  " are playing against ",
+                  m("span.black-name", game.black[1]),
+                  ", ",
+                  toplay(game.black[1], "rejoin?"),
+                ]),
+              ]);
+            } else if (
+              game.black[0].length == 0 &&
+              player_name.equalIgnoreCase(game.black[1]) &&
+              game.white[1]
+            ) {
+              games.push([
+                m("div.game", [
+                  m("span.white-name", game.white[1]),
+                  " invites ",
+                  m("span.black-name", "you"),
+                  " to play, ",
+                  toplay(game.white[1], "join?"),
+                ]),
+              ]);
+            } else if (
+              game.white[0].length == 0 &&
+              player_name.equalIgnoreCase(game.white[1]) &&
+              game.black[1]
+            ) {
+              games.push([
+                m("div.game", [
+                  m("span.black-name", game.black[1]),
+                  " invites ",
+                  m("span.white-name", "you"),
+                  " to play, ",
+                  toplay(game.black[1], "join?"),
+                ]),
+              ]);
+            }
+          }
+        }
+        // console.log(games);
         let top_players = res.top;
         let recent_players = res.recent;
         let available_players = res.available;
@@ -400,13 +482,17 @@ function Tips() {
     view: function () {
       let tip;
       let chart;
-      if (charts.length == 0) {
-        tip = tips[next % tips.length];
+      if (games.length > 0) {
+        return m(".fancy", m("div.tip", games));
       } else {
-        tip = tips[(next >> 1) % tips.length];
-        chart = charts[(next >> 1) % charts.length];
+        if (charts.length == 0) {
+          tip = tips[next % tips.length];
+        } else {
+          tip = tips[(next >> 1) % tips.length];
+          chart = charts[(next >> 1) % charts.length];
+        }
+        return m(".fancy", m("div.tip", next % 2 == 0 ? tip : chart));
       }
-      return m(".fancy", m("div.tip", next % 2 == 0 ? tip : chart));
     },
   };
 }

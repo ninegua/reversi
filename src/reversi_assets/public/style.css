@@ -102,6 +102,13 @@ svg {
   color: #c42;
 }
 
+.game a:link,
+.game a:hover,
+.game a:active,
+.game a:visited {
+  color: #c42;
+}
+
 .score {
   font-size: 3em;
   pointer-events: none;
@@ -360,6 +367,14 @@ body,
     color: #fff;
     opacity: 0;
   }
+}
+
+.white-name {
+  color: white;
+}
+
+.black-name {
+  color: black;
 }
 
 .blink {

@@ -145,11 +145,15 @@ actor {
     null
   };
 
-  // Return existing game that the given player is playing.
-  // The condition of "playing" is equivalent to having the player_id in the game.
-  // Otherwise, a game may have the player's name, but is only "expecting" the player.
-  // It implies that a player can only play one game any any time, which could
-  // be in any state: progressing, finished, or expecting another player.
+  // Return all games that the given player might be playing.
+  func lookup_games_by_name(player_name: PlayerName): [GameState] {
+    Array.filter(games.toArray(), func (game: GameState) : Bool {
+      let (black_id, black_name) = game.black;
+      let (white_id, white_name) = game.white;
+      Utils.eq_nocase(white_name, player_name) or Utils.eq_nocase(black_name, player_name)
+    })
+  };
+
   func lookup_game_by_name(player_name: PlayerName): ?GameState {
     for (i in Iter.range(0, games.size()-1)) {
       let game = games.get(i);
@@ -373,7 +377,10 @@ actor {
   };
 
   // List (my) pending games, and top/recent/available players.
-  public query func list(): async Types.ListResult {
+  public shared query (msg) func list(): async Types.ListResult {
+    let player_id = msg.caller;
+    let player_name = Option.map(lookup_player_by_id(player_id),
+                                 func (state: PlayerState): PlayerName { state.name });
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
       Array.map<?PlayerView, PlayerView>(
         Array.filter<?PlayerView>(
@@ -400,6 +407,9 @@ actor {
       top = Array.tabulate<PlayerView>(n_top, func(i) { Option.unwrap(top_players[i]) });
       recent = names_to_view(recent_players, n_recent);
       available = names_to_view(available_players, n_available);
+      games = Array.map(
+        Option.getMapped(player_name, lookup_games_by_name, []),
+        Utils.game_state_to_view);
     }
   };
 

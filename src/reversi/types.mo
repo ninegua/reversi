@@ -57,6 +57,7 @@ public type ListResult = {
   top: [PlayerView];
   recent: [PlayerView];
   available: [PlayerView];
+  games: [GameView];
 };
 
 public type RegistrationError = {
@@ -82,8 +83,8 @@ public type GameView = {
   dimension: Nat;
   board: Text;
   moves: [Nat8];
-  black: (?(), PlayerName);
-  white: (?(), PlayerName);
+  black: (?PlayerId, PlayerName);
+  white: (?PlayerId, PlayerName);
   next: Game.Color;
   result: ?Game.ColorCount;
   expiring: Bool;
