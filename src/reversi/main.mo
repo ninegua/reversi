@@ -405,8 +405,8 @@ actor {
   // List (my) pending games, and top/recent/available players.
   public shared query (msg) func list(): async Types.ListResult {
     let player_id = msg.caller;
-    let player_name = Option.map(lookup_player_by_id(player_id),
-                                 func (state: PlayerState): PlayerName { state.name });
+    let player = lookup_player_by_id(player_id);
+    let player_name = Option.map(player, func (state: PlayerState): PlayerName { state.name });
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
       Array.map<?PlayerView, PlayerView>(
         Array.filter<?PlayerView>(
@@ -433,6 +433,7 @@ actor {
       top = Array.tabulate<PlayerView>(n_top, func(i) { Option.unwrap(top_players[i]) });
       recent = names_to_view(recent_players, n_recent);
       available = names_to_view(available_players, n_available);
+      player = Option.map(player, Utils.player_state_to_view);
       games = Array.map(
         Option.getMapped(player_name, lookup_games_by_name, []),
         game_state_to_view);

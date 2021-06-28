@@ -57,6 +57,7 @@ public type ListResult = {
   top: [PlayerView];
   recent: [PlayerView];
   available: [PlayerView];
+  player: ?PlayerView;
   games: [GameView];
 };
 

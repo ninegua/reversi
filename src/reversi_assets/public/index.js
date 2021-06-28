@@ -332,6 +332,11 @@ var inited = null;
 var player_name = null;
 var player_score = null;
 
+function set_player_info(info) {
+  player_name = info["name"];
+  player_score = Number(info["score"]);
+}
+
 function Tips() {
   let next = 0;
   let tips = [
@@ -374,6 +379,9 @@ function Tips() {
       .then(function (res) {
         // console.log("refresh_list");
         // console.log(res);
+        if (res.player.length > 0) {
+          set_player_info(res.player[0]);
+        }
         games = [];
         function render_name(player, color) {
           return player.PlayerName
@@ -513,10 +521,6 @@ function Tips() {
 function Play() {
   var tips_on = false;
   var opponent_name = null;
-  var set_player_info = function (info) {
-    player_name = info["name"];
-    player_score = Number(info["score"]);
-  };
   var set_tips_on = function () {
     tips_on = true;
     m.redraw();
