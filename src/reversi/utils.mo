@@ -7,11 +7,15 @@ import Option "mo:base/Option";
 import Prim "mo:prim";
 import Types "./types";
 import Text "mo:base/Text";
+import Time "mo:base/Time";
 
 import Game "./game";
 
 module {
 
+// Game with no movement will expire.
+public let game_expired_nanosecs = 600000000000; // 10 minutes
+public let game_expiring_nanosecs = 540000000000; // 9 minutes
 public type Iter<T> = Iter.Iter<T>;
 public type GameState = Types.GameState;
 public type GameView = Types.GameView;
@@ -103,6 +107,7 @@ public func game_state_to_view(game: GameState): GameView {
     dimension = game.dimension;
     next = game.next;
     result = game.result;
+    expiring = game.last_updated + game_expiring_nanosecs < Time.now();
   }
 };
 

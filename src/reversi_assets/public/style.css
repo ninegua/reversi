@@ -362,6 +362,22 @@ body,
   }
 }
 
+.blink {
+  animation: blinker 1s infinite;
+}
+
+@keyframes blinker {
+  from {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 #main {
   width: 100%;
   height: 100%;

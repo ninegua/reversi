@@ -1,7 +1,7 @@
 PROVIDER ?= local
 MODE ?= install
 PROJECT=reversi
-MO_SRC:=src/$(PROJECT)/main.mo src/$(PROJECT)/game.mo
+MO_SRC:=src/$(PROJECT)/main.mo src/$(PROJECT)/game.mo src/$(PROJECT)/types.mo src/$(PROJECT)/utils.mo
 JS_SRC:=src/$(PROJECT)_assets/public/index.js src/$(PROJECT)_assets/public/style.css src/$(PROJECT)_assets/public/logo.png
 JS_CFG:=package-lock.json webpack.config.js
 DFX_CFG:=dfx.json

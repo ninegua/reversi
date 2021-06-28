@@ -165,13 +165,37 @@ actor {
 
   // Delete a game from the existing games.
   func delete_game(game: GameState) {
-    for (i in Iter.range(0, games.size()-1)) {
+    var n = games.size();
+    var i = 0;
+    while (i < n) {
       if (Utils.same_game(game, games.get(i))) {
         for (j in Iter.range(i + 1, games.size()-1)) {
           let game = games.get(j);
           games.put(j-1, game);
         };
         let _ = games.removeLast();
+        n := n - 1
+      } else {
+        i := i + 1
+      }
+    }
+  };
+
+  // Purge expired games has no movement for 10 minutes.
+  func purge_expired_games() {
+    var n = games.size();
+    var i = 0;
+    let now = Time.now();
+    while (i < n) {
+      let game = games.get(i);
+      if (game.last_updated + Utils.game_expired_nanosecs < now) {
+        switch (games.removeLast()) {
+          case null ();
+          case (?game) games.put(i, game);
+        };
+        n := n - 1
+      } else {
+        i := i + 1
       }
     }
   };
@@ -206,6 +230,7 @@ actor {
   // It also means if white has left a game (to start another one), black can keep waiting.
   // But if black has left a game (to start another one), the game must be cancelled.
   public shared (msg) func start(opponent_name: Text): async Result<GameView, Types.StartError> {
+    purge_expired_games();
     let player_id = msg.caller;
     switch (lookup_player_by_id(player_id)) {
       case null (#err(#PlayerNotFound));
@@ -220,6 +245,7 @@ actor {
               if (Utils.eq_nocase(game.black.1, player.name) and Option.isNull(game.white.0)) {
                 // Opponent has not arrived or already left, cancel it
                 game.white := (null, "");
+                game.last_updated := Time.now();
                 Utils.reset_game(game);
                 return #ok(proceed(game));
               } else if (Option.isNull(game.result)) {
@@ -248,6 +274,7 @@ actor {
                     delete_game(game_A);
                   } else {
                     game_A.white := (null, "");
+                    game_A.last_updated := Time.now();
                   }
                 }
               };
@@ -256,9 +283,11 @@ actor {
             // check if opponent is expecting no player or this player
             if (Utils.eq_nocase(game_B.black.1, player.name)) {
               game_B.black := (?player_id, player.name);
+              game_B.last_updated := Time.now();
               #ok(proceed(game_B))
             } else if (Utils.eq_nocase(game_B.white.1, player.name) or game_B.white.1 == "") {
               game_B.white := (?player_id, player.name);
+              game_B.last_updated := Time.now();
               #ok(proceed(game_B))
             } else {
               #err(#OpponentInAnotherGame);
@@ -269,10 +298,12 @@ actor {
             if (Utils.eq_nocase(game.white.1, player.name)) {
               // remove this player from existing game, and start a new one
               game.white := (null, "");
+              game.last_updated := Time.now();
               #ok(proceed(add_game(player_id, player.name, opponent_name)));
             } else {
               // this player is playing black, reset this game
               game.white := (null, opponent_name);
+              game.last_updated := Time.now();
               Utils.reset_game(game);
               #ok(proceed(game))
             }
@@ -298,6 +329,7 @@ actor {
       var white : (?PlayerId, PlayerName) = (null, white_name);
       var next : Game.Color = #white;
       var result : ?Game.ColorCount = null;
+      var last_updated = Time.now();
     };
     Utils.reset_game(game);
     games.add(game);
@@ -404,6 +436,7 @@ actor {
               case (#OK) {
                 game.moves.add(Nat8.fromNat(row * game.dimension + col));
                 game.next := Game.opponent(color);
+                game.last_updated := Time.now();
                 #OK
               };
               case (#Pass) {
@@ -413,6 +446,7 @@ actor {
               case (#GameOver(result)) {
                 game.moves.add(Nat8.fromNat(row * game.dimension + col));
                 game.result := ?result;
+                game.last_updated := Time.now();
                 update_score(game.dimension, game.black.0, game.white.0, result);
                 #GameOver(result)
               };

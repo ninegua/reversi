@@ -90,6 +90,7 @@ function Game() {
   var last_move_length = null;
   var player_color = null;
   var next_color = null;
+  var expiring = null;
   var refresh = function () {
     clearTimeout(refreshTimeout);
     reversi
@@ -102,6 +103,17 @@ function Game() {
           start_loading();
           m.route.set("/play");
         } else {
+          if (expiring) {
+            if (expiring - new Date() > 1000 * 60) {
+              set_error("GameCancelled");
+              start_loading();
+              m.route.set("/play");
+              return
+            }
+          } else if (game.expiring) {
+            expiring = new Date();
+            m.redraw();
+          }
           let black_name = game ? game["black"][1] : null;
           let white_name = game ? game["white"][1] : null;
           game = res[0];
@@ -255,6 +267,7 @@ function Game() {
         content = m("div");
       } else {
         content = Board(
+          expiring ? "Game will expire if no one moves!" : "",
           player_color,
           next_color,
           game,

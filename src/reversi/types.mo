@@ -6,6 +6,7 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Game "./game";
 import Text "mo:base/Text";
+import Time "mo:base/Time";
 
 module {
 
@@ -74,6 +75,7 @@ public type GameState = {
   var white: (?PlayerId, PlayerName);
   var next: Game.Color;
   var result: ?Game.ColorCount;
+  var last_updated: Time.Time;
 };
 
 public type GameView = {
@@ -84,6 +86,7 @@ public type GameView = {
   white: (?(), PlayerName);
   next: Game.Color;
   result: ?Game.ColorCount;
+  expiring: Bool;
 };
 
 public type Games = Buffer.Buffer<GameState>;

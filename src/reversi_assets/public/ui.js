@@ -15,17 +15,17 @@ export function load_put_sound(reversi_assets) {
   if (putsound === null) {
     putsound = {}; // avoid loading it twice
     fetch("/put.mp3")
-      .then(function(response) {
+      .then(function (response) {
         return response.arrayBuffer();
       })
-      .then(function(buffer) {
+      .then(function (buffer) {
         var context = new AudioContext();
-        context.decodeAudioData(buffer, function(res) {
+        context.decodeAudioData(buffer, function (res) {
           //console.log("Audio is loaded");
           putsound = { buffer: res, context: context };
         });
       })
-      .catch(function(err) {
+      .catch(function (err) {
         console.log("Asset retrieve error, ignore");
         console.log(err);
       });
@@ -66,6 +66,7 @@ var animateTimeout = null;
 
 // Draw the board in SVG.
 export function Board(
+  message,
   player_color,
   next_color,
   game,
@@ -98,7 +99,7 @@ export function Board(
             cx: dot_start + i * 20,
             cy: dotsHeight / 2,
             r: 6,
-            fill: dot_color
+            fill: dot_color,
           },
           m("animate", {
             attributeName: "opacity",
@@ -107,7 +108,7 @@ export function Board(
             repeatCount: "indefinite",
             begin: 0.3 + i * 0.3,
             restart: "whenNotActive",
-            id: "dot-" + i
+            id: "dot-" + i,
           })
         )
       );
@@ -119,17 +120,17 @@ export function Board(
   cells.push(
     m("defs", [
       m("filter", { id: "shadow-0" }, [
-        m("feDropShadow", { dx: 2, dy: 4, stdDeviation: 0.5 })
+        m("feDropShadow", { dx: 2, dy: 4, stdDeviation: 0.5 }),
       ]),
       m("filter", { id: "shadow-45" }, [
-        m("feDropShadow", { dx: 4.22, dy: 1.46, stdDeviation: 0.5 })
+        m("feDropShadow", { dx: 4.22, dy: 1.46, stdDeviation: 0.5 }),
       ]),
       m("filter", { id: "shadow-90" }, [
-        m("feDropShadow", { dx: 4, dy: -2, stdDeviation: 0.5 })
+        m("feDropShadow", { dx: 4, dy: -2, stdDeviation: 0.5 }),
       ]),
       m("filter", { id: "shadow-135" }, [
-        m("feDropShadow", { dx: 1.46, dy: -4.22, stdDeviation: 0.5 })
-      ])
+        m("feDropShadow", { dx: 1.46, dy: -4.22, stdDeviation: 0.5 }),
+      ]),
     ])
   );
 
@@ -151,9 +152,9 @@ export function Board(
         style: {
           fill: "#060",
           stroke: "#000",
-          strokeWidth: 1
+          strokeWidth: 1,
         },
-        id: idx
+        id: idx,
       };
       if (value == "." && nextMove) {
         attrs["onclick"] = onClick;
@@ -172,7 +173,7 @@ export function Board(
               "stroke-dasharray": 4,
               "stroke-width": hintStrokeWidth,
               "stroke-opacity": 0.6,
-              fill: "none"
+              fill: "none",
             })
           );
         }
@@ -194,7 +195,7 @@ export function Board(
                 repeatCount: "1",
                 from: cellSize * 0.1,
                 to: radius,
-                fill: "freeze"
+                fill: "freeze",
               })
             );
             elems.push(
@@ -205,7 +206,7 @@ export function Board(
                 repeatCount: "1",
                 from: cellSize * 0.1,
                 to: radius,
-                fill: "freeze"
+                fill: "freeze",
               })
             );
             radius = cellSize * 0.1;
@@ -218,7 +219,7 @@ export function Board(
                 dur: "0.4s",
                 repeatCount: "1",
                 values: [radius, radius, "0", radius].join(";"),
-                fill: "freeze"
+                fill: "freeze",
               })
             );
             elems.push(
@@ -230,7 +231,7 @@ export function Board(
                 values: [opponentColor, opponentColor, "#888", pieceColor].join(
                   ";"
                 ),
-                fill: "freeze"
+                fill: "freeze",
               })
             );
             pieceColor = opponentColor;
@@ -262,7 +263,7 @@ export function Board(
               "stroke-opacity": 0.4,
               fill: pieceColor,
               filter: "url(#shadow-" + degree + ")",
-              transform: "rotate(" + degree + " " + cx + " " + cy + ")"
+              transform: "rotate(" + degree + " " + cx + " " + cy + ")",
             },
             elems
           )
@@ -282,9 +283,9 @@ export function Board(
         style: {
           fill: "#685",
           stroke: "#000",
-          strokeWidth: 3
+          strokeWidth: 3,
         },
-        onclick: onDismiss
+        onclick: onDismiss,
       })
     );
     cells.push(
@@ -294,12 +295,12 @@ export function Board(
           x: "50%",
           y: "50%",
           "dominant-baseline": "middle",
-          "text-anchor": "middle"
+          "text-anchor": "middle",
         },
         [
           m("tspan", { fill: "black" }, Number(game.result[0]["black"])),
           "   :   ",
-          m("tspan", { fill: "white" }, Number(game.result[0]["white"]))
+          m("tspan", { fill: "white" }, Number(game.result[0]["white"])),
         ]
       )
     );
@@ -311,13 +312,13 @@ export function Board(
   // sure if there is an alternative work-around.
   clearTimeout(animateTimeout);
   if (animate_list) {
-    animateTimeout = setTimeout(function() {
-      document.querySelectorAll("animate").forEach(function(animate) {
+    animateTimeout = setTimeout(function () {
+      document.querySelectorAll("animate").forEach(function (animate) {
         if (!animate.id.startsWith("dot")) {
           animate.beginElement();
         }
       });
-      setTimeout(function() {
+      setTimeout(function () {
         if (boards.length > 1) {
           boards.shift();
           if (boards.length > 1) {
@@ -338,11 +339,13 @@ export function Board(
   return [
     m("div.players", { style: { width: boardLength + "px" } }, [
       m("span.black-player", black_player),
-      m("span.white-player", white_player)
+      m("span.white-player", white_player),
     ]),
     m("svg.dots", { width: boardLength, height: dotsHeight }, dots),
     m("svg.board", { width: boardLength, height: boardLength }, cells),
-    m("h1.dimension", dimension + " × " + dimension)
+    message == ""
+      ? m("h2.dimension", dimension + " × " + dimension)
+      : m("h2.blink", message),
   ];
 }
 
