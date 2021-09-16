@@ -11,6 +11,7 @@
 canisters/
 
 # dfx temporary files
+.vessel
 .dfx/
 
 # dfx distribution files

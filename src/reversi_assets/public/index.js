@@ -36,6 +36,11 @@ import m from "mithril";
 
 document.title = "Reversi Game on IC";
 
+// Force people to connect to stoic
+
+window.location.hash = '';
+m.redraw();
+
 // Create a spinner overlay
 const spinner_overlay = document.createElement("div");
 spinner_overlay.id = "spinner_overlay";
@@ -504,6 +509,7 @@ function Play() {
   };
 
   var init_play = async function () {
+    start_loading();
     if (!inited) {
       await agent.fetchRootKey();
     }
@@ -658,14 +664,13 @@ function Connect() {
         agent,
         canisterId: reversi_assets_id,
       });
-      window.location.hash = '/play';
+      m.redraw();
       console.log(window.stoicPrincipal instanceof Principal)
     })
   };
 
   return {
     oninit: () => {
-      connectStoic();
       stop_loading();
     },
     onremove: function () { },
@@ -675,7 +680,7 @@ function Connect() {
         window.stoicConnected
         ? m(m.route.Link, { href: "/play" }, "Play")
         : m("button", {
-            onclick: connectStoic()
+            onclick: connectStoic
         }, "Connect Stoic"),
       ]
     },
