@@ -16,7 +16,7 @@ import Game "./game";
 import Types "./types";
 import Utils "./utils";
 
-actor {
+actor self {
 
   type Result<T,E> = Result.Result<T,E>;
   type Players = Types.Players;
@@ -370,7 +370,7 @@ actor {
   // 1. The greater the level difference, the big you lose if your level is higher.
   // 2. The greater the level difference, the big you win if your level is lower.
   // 3. Extra bonus for finishing game early.
-  func update_score(N: Nat, black_id: ?PlayerId, white_id: ?PlayerId, result: Game.ColorCount) {
+  func update_score(N: Nat, black_id: ?PlayerId, white_id: ?PlayerId, result: Game.ColorCount) : async () {
     switch (Option.chain(black_id, lookup_player_by_id),
             Option.chain(white_id, lookup_player_by_id)) {
       case (?black_player, ?white_player) {
@@ -385,18 +385,19 @@ actor {
         };
         let bonus : Nat = 2 * N * N - result.black - result.white;
         let set_score =
-          func (player: PlayerState, points: Int, player_level: Nat, opponent_level: Nat) {
+          func (player: PlayerState, points: Int, player_level: Nat, opponent_level: Nat) : async () {
             let delta = compute_score(points, player_level, opponent_level);
             if (player.score + delta < 0) {
               player.score := 0;
             } else {
               player.score := Int.abs(player.score + delta);
             };
+            await metascore.scoreUpdate([(#stoic(player.ids[0]), player.score)]);
             Utils.update_top_players(top_players, player.name, player.score);
           };
         let points : Int = (result.black - result.white) * bonus / N / N;
-        set_score(black_player, points, black_level, white_level);
-        set_score(white_player, - points, white_level, black_level);
+        await set_score(black_player, points, black_level, white_level);
+        await set_score(white_player, - points, white_level, black_level);
       };
       case _ {};
     }
@@ -484,7 +485,7 @@ actor {
                 game.moves.add(Nat8.fromNat(row * game.dimension + col));
                 game.result := ?result;
                 game.last_updated := Time.now();
-                update_score(game.dimension, game.black.0, game.white.0, result);
+                await update_score(game.dimension, game.black.0, game.white.0, result);
                 #GameOver(result)
               };
             }
@@ -493,5 +494,70 @@ actor {
         }
       }
     }
-  }
+  };
+
+  // Represents the (minimal) interface of the Metascore canister.
+  public type MetascoreInterface = actor {
+    // Methods that needs to be called to register a new game.
+    // Can be called by any principal account. a game canister will register
+    // itself by calling the callback given in 'metascoreRegisterSelf'.
+    register    : (Principal) -> async Result.Result<(), Text>;
+    unregister  : (Principal) -> async Result.Result<(), Text>;
+
+    // Endpoint to send score updates to.
+    scoreUpdate : shared ([Score]) -> async ();
+  };
+
+  let metascore : MetascoreInterface = actor("rl4ub-oqaaa-aaaah-qbi3a-cai");
+
+  // Metadata of a game.
+  public type Metadata = {
+    name : Text; // Name of the game.
+    playUrl : Text; // A URL where users can play the game.
+    flavorText : ?Text; // Some brief flavor text about the game.
+    // TODO: add more fields (e.g. genre, ...)
+  };
+
+  // Callback on which new games should register.
+  public type RegisterCallback = shared (
+    // Metadata of the game itself.
+    metadata : Metadata
+  ) -> async ();
+
+  // Represents a player.
+  // Supported: Stoic and Plug.
+  public type Player = {
+    #stoic : Principal;
+    #plug  : Principal;
+  };
+
+  // Score of a player.
+  public type Score = (
+    Player, // Wallet address of the player.
+    Nat,    // Score of the player.
+  );
+
+  public query func metascoreScores() : async [Score] {
+    var response : [Score] = [];
+    for (player in Iter.fromArray(allAccounts())) {
+      response := Array.append<Score>(response, [(#stoic(player.ids[0]), player.score)])
+    };
+    response;
+  };
+
+  public shared func metascoreRegisterSelf(callback : RegisterCallback) : async () {
+    await callback({
+      name = "Reversi";
+      playUrl = "https://q6avi-dyaaa-aaaah-qbpda-cai.raw.ic0.app/";
+      flavorText = ?"A multiplayer reversi game.";
+    });
+  };
+
+  public func registerMS () : async Result.Result<(), Text> {
+    await metascore.register(Principal.fromActor(self));
+  };
+
+  public func unregisterMS () : async Result.Result<(), Text> {
+    await metascore.unregister(Principal.fromActor(self));
+  };
 }
