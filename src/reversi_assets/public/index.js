@@ -38,6 +38,7 @@ document.title = "Reversi Game on IC";
 
 // Force people to connect to stoic
 
+window.successHash = window.location.hash;
 window.location.hash = '';
 m.redraw();
 
@@ -665,6 +666,7 @@ function Connect() {
         canisterId: reversi_assets_id,
       });
       m.redraw();
+      if (window.successHash) window.location.hash = window.successHash;
       console.log(window.stoicPrincipal instanceof Principal)
     })
   };
