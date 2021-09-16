@@ -1,4 +1,3 @@
-import { Ed25519KeyIdentity } from "@dfinity/identity";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import {
   idlFactory as reversi_idl,
@@ -8,6 +7,8 @@ import {
   idlFactory as reversi_assets_idl,
   canisterId as reversi_assets_id,
 } from "dfx-generated/reversi_assets";
+import { StoicIdentity } from 'ic-stoic-identity';
+import { Principal } from '@dfinity/principal';
 
 String.prototype.equalIgnoreCase = function (str) {
   return (
@@ -16,38 +17,6 @@ String.prototype.equalIgnoreCase = function (str) {
     this.toUpperCase() === str.toUpperCase()
   );
 };
-
-function newIdentity() {
-  const entropy = crypto.getRandomValues(new Uint8Array(32));
-  const identity = Ed25519KeyIdentity.generate(entropy);
-  localStorage.setItem("reversi_id", JSON.stringify(identity));
-  return identity;
-}
-
-function readIdentity() {
-  const stored = localStorage.getItem("reversi_id");
-  if (!stored) {
-    return newIdentity();
-  }
-  try {
-    return Ed25519KeyIdentity.fromJSON(stored);
-  } catch (error) {
-    console.log(error);
-    return newIdentity();
-  }
-}
-const identity = readIdentity();
-const player_id = identity.getPrincipal().toHex();
-const agent = new HttpAgent({ identity });
-
-const reversi = Actor.createActor(reversi_idl, {
-  agent,
-  canisterId: reversi_id,
-});
-const reversi_assets = Actor.createActor(reversi_assets_idl, {
-  agent,
-  canisterId: reversi_assets_id,
-});
 
 import { valid_move, set_and_flip, replay } from "./game.js";
 import { get_error_message, set_error, clear_error } from "./error.js";
@@ -103,7 +72,7 @@ function Game() {
   var expiring = null;
   var refresh = function () {
     clearTimeout(refreshTimeout);
-    reversi
+    window.reversi
       .view()
       .then(function (res) {
         // console.log("refresh view");
@@ -190,9 +159,9 @@ function Game() {
   };
   var start = function (player, opponent) {
     clearTimeout(refreshTimeout);
-    load_put_sound(reversi_assets);
+    load_put_sound(window.reversi_assets);
     console.log("Start " + player + " against " + opponent);
-    reversi
+    window.reversi
       .start(opponent)
       .then(function (res) {
         //console.log("start res = " + toJSON(res));
@@ -251,7 +220,7 @@ function Game() {
       set_and_flip(dimension, board, piece, row, col);
       boards.push({ row: row, col: col, board: board });
       next_color = opponent_color(player_color);
-      reversi
+      window.reversi
         .move(row, col)
         .then(function (res) {
           if ("OK" in res || "Pass" in res || "GameOver" in res) {
@@ -374,7 +343,7 @@ function Tips() {
   var charts = [];
 
   let refresh_list = function () {
-    reversi
+    window.reversi
       .list()
       .then(function (res) {
         // console.log("refresh_list");
@@ -387,11 +356,11 @@ function Tips() {
           return player.PlayerName
             ? [m("span." + color + "-name", player.PlayerName)]
             : [
-                m("span." + color + "-name", player.Player[1].name),
-                "(",
-                m("span.player-score", player.Player[1].score),
-                ")",
-              ];
+              m("span." + color + "-name", player.Player[1].name),
+              "(",
+              m("span.player-score", player.Player[1].score),
+              ")",
+            ];
         }
         function render_play(player, content) {
           return m(
@@ -536,7 +505,7 @@ function Play() {
 
   var init_play = async function () {
     if (!inited) {
-      //await agent.fetchRootKey();
+      await agent.fetchRootKey();
     }
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);
@@ -546,7 +515,7 @@ function Play() {
       stop_loading();
       return;
     }
-    reversi
+    window.reversi
       .register("")
       .then(function (res) {
         inited = true;
@@ -575,7 +544,7 @@ function Play() {
     clear_error();
     console.log("Play " + player_name + " against " + opponent_name);
     start_loading();
-    reversi
+    window.reversi
       .register(player_name)
       .then(function (res) {
         if ("ok" in res) {
@@ -673,7 +642,48 @@ function Play() {
   };
 }
 
-m.route(main, "/play", {
+function Connect() {
+
+  async function connectStoic() {
+    StoicIdentity.load().then(async (identity) => {
+      identity = await StoicIdentity.connect();
+      window.stoicConnected = true;
+      window.stoicPrincipal = identity.getPrincipal();
+      window.agent = new HttpAgent({ identity });
+      window.reversi = Actor.createActor(reversi_idl, {
+        agent,
+        canisterId: reversi_id,
+      });
+      window.reversi_assets = Actor.createActor(reversi_assets_idl, {
+        agent,
+        canisterId: reversi_assets_id,
+      });
+      window.location.hash = '/play';
+      console.log(window.stoicPrincipal instanceof Principal)
+    })
+  };
+
+  return {
+    oninit: () => {
+      connectStoic();
+      stop_loading();
+    },
+    onremove: function () { },
+    view: function () {
+      return [
+        m('h1', 'Connect'),
+        window.stoicConnected
+        ? m(m.route.Link, { href: "/play" }, "Play")
+        : m("button", {
+            onclick: connectStoic()
+        }, "Connect Stoic"),
+      ]
+    },
+  };
+}
+
+m.route(main, "/", {
+  "/": Connect,
   "/play": Play,
   "/game/:player/:against": Game,
 });
