@@ -639,8 +639,8 @@ function Play() {
             "div.bottom",
             m(
               "a",
-              { href: "https://github.com/ninegua/reversi" },
-              "Source Code"
+              { href: "https://discord.gg/UA3mSN564d", target: "_blank" },
+              "Find an Opponent on the Metascore Discord"
             )
           ),
         ];
@@ -684,6 +684,14 @@ function Connect() {
         : m("button", {
             onclick: connectStoic
         }, "Connect Stoic"),
+        m(
+          "div.bottom",
+          m(
+            "a",
+            { href: "https://discord.gg/UA3mSN564d", target: "_blank" },
+            "Find an Opponent on the Metascore Discord"
+          )
+        ),
       ]
     },
   };
