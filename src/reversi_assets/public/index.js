@@ -639,7 +639,7 @@ function Play() {
             "div.bottom",
             m(
               "a",
-              { href: "https://discord.gg/UA3mSN564d", target: "_blank" },
+              { href: "https://discord.gg/eRDKdrfKBj", target: "_blank" },
               "Find an Opponent on the Metascore Discord"
             )
           ),
@@ -688,7 +688,7 @@ function Connect() {
           "div.bottom",
           m(
             "a",
-            { href: "https://discord.gg/UA3mSN564d", target: "_blank" },
+            { href: "https://discord.gg/eRDKdrfKBj", target: "_blank" },
             "Find an Opponent on the Metascore Discord"
           )
         ),

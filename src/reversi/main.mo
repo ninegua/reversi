@@ -508,7 +508,7 @@ actor self {
     scoreUpdate : shared ([Score]) -> async ();
   };
 
-  let metascore : MetascoreInterface = actor("rl4ub-oqaaa-aaaah-qbi3a-cai");
+  let metascore : MetascoreInterface = actor("tzvxm-jqaaa-aaaaj-qabga-cai");
 
   // Metadata of a game.
   public type Metadata = {
