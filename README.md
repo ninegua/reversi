@@ -40,7 +40,7 @@ To run the game locally, you need to install [DFINITY SDK] first, which also req
 After starting dfx (`dfx start --background`), run the following to build and install the canister:
 
 ```
-make install
+dfx deploy
 echo "http://localhost:8000/?canisterId=$(dfx canister id reversi_assets)"
 ```
 

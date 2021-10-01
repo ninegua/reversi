@@ -463,21 +463,6 @@ The above says any *animate* elements with an id not starting with "dot" will be
 
 I developed this game on Linux.
 The initial setup involves installing the [DFINITY SDK] and following its instructions to create a project.
-Later I find it tedious to remember all *dfx* command lines, so I made a [Makefile](https://github.com/ninegua/reversi/blob/master/Makefile) to help.
-
-```
-USAGE: make [PROVIDER=...] [install|reinstall|upgrade|clean|canister|assets]
-
-Build & install instructions:
-
-  install|reinstall|upgrade -- Build and install canisters with different mode.
-  clean                     -- Remove build products.
-  canister                  -- Only build the main canister
-  assets                    -- Build both the main and assets canisters.
-
-The PROVIDER variable is optional. It corresponds to "networks" configuration in
-the dfx.json file. The default is "local".
-```
 
 Debugging and testing were mostly done in browser, so lots of *console.log()*.
 There is actually a way to [write unit tests in Motoko](https://github.com/kritzcreek/motoko-matchers), but I only learned about it after I wrote the game.
