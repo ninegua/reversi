@@ -1,5 +1,6 @@
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
+import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Int "mo:base/Int";
@@ -140,6 +141,7 @@ actor {
   // error.
   public shared(msg) func register(name: Text): async Result<PlayerView, Types.RegistrationError> {
     let player_id = msg.caller;
+    Debug.print("caller: " # Principal.toText(player_id));
     switch (lookup_player_by_id(player_id), Utils.valid_name(name)) {
       case (?player, _) {
         Utils.update_recent_players(recent_players, player.name);
@@ -408,15 +410,13 @@ actor {
     let player = lookup_player_by_id(player_id);
     let player_name = Option.map(player, func (state: PlayerState): PlayerName { state.name });
     let names_to_view = func(arr: [var PlayerName], count: Nat) : [PlayerView] {
-      Array.map<?PlayerView, PlayerView>(
-        Array.filter<?PlayerView>(
+      Array.mapFilter<?PlayerView, PlayerView>(
           Array.tabulate<?PlayerView>(count, func(i) {
             Option.map<PlayerState, PlayerView>(
               lookup_player_by_name(arr[i]),
               Utils.player_state_to_view)
           }),
-          Option.isSome),
-        func(x) { Option.unwrap<PlayerView>(x) } )
+          func (x) { x })
     };
     let count_until = func<A>(arr: [var A], f: A -> Bool) : Nat {
        var n = 0;

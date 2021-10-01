@@ -1,0 +1,16 @@
+{
+  "background_color": "white",
+  "description": "Reversi Game On the Internet Computer",
+  "display": "standalone",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/_/raw/logo.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ],
+  "name": "Reversi",
+  "short_name": "Reversi",
+  "start_url": "/"
+}

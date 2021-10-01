@@ -3,11 +3,11 @@ import { Actor, HttpAgent } from "@dfinity/agent";
 import {
   idlFactory as reversi_idl,
   canisterId as reversi_id,
-} from "dfx-generated/reversi";
+} from "../../declarations/reversi";
 import {
   idlFactory as reversi_assets_idl,
   canisterId as reversi_assets_id,
-} from "dfx-generated/reversi_assets";
+} from "../../declarations/reversi_assets";
 
 String.prototype.equalIgnoreCase = function (str) {
   return (
@@ -536,7 +536,9 @@ function Play() {
 
   var init_play = async function () {
     if (!inited) {
-      //await agent.fetchRootKey();
+      if (process.env.NODE_ENV !== "production") {
+        await agent.fetchRootKey();
+      }
     }
     if (refreshTimeout) {
       clearTimeout(refreshTimeout);

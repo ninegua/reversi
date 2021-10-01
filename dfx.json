@@ -9,7 +9,7 @@
         "reversi"
       ],
       "frontend": {
-        "entrypoint": "src/reversi_assets/public/index.html"
+        "entrypoint": "src/reversi_assets/src/index.html"
       },
       "source": [
         "src/reversi_assets/assets",
@@ -23,7 +23,7 @@
       "packtool": ""
     }
   },
-  "dfx": "0.7.1",
+  "dfx": "0.8.1",
   "networks": {
     "local": {
       "bind": "0.0.0.0:8000",
