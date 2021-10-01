@@ -426,11 +426,10 @@ actor {
        };
        return n;
     };
-    let n_top = count_until<?PlayerView>(top_players, Option.isNull);
     let n_recent = count_until<PlayerName>(recent_players, func(x) { x=="" });
     let n_available = count_until<PlayerName>(available_players, func(x) { x=="" });
     {
-      top = Array.tabulate<PlayerView>(n_top, func(i) { Option.unwrap(top_players[i]) });
+      top = Array.mapFilter<?PlayerView, PlayerView>(Array.freeze(top_players), func(x) { x });
       recent = names_to_view(recent_players, n_recent);
       available = names_to_view(available_players, n_available);
       player = Option.map(player, Utils.player_state_to_view);
