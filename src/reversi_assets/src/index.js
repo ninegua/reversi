@@ -300,6 +300,132 @@ function Game() {
   };
 }
 
+// Main game UI component.
+function Observe() {
+  var game = null;
+  var boards = [];
+  var last_move_length = null;
+  var player_color = null;
+  var next_color = null;
+  var expiring = null;
+  var refresh = function (player, against) {
+    clearTimeout(refreshTimeout);
+    reversi
+      .view_game(player, against)
+      .then(function (res) {
+        // console.log("refresh view");
+        // console.log(res);
+        if (res.length == 0) {
+          set_error("GameCancelled");
+          
+        } else {
+          
+          
+          game = res[0];
+          let black_name = game ? get_player_name(game.black) : null;
+          let white_name = game ? get_player_name(game.white) : null;
+          const N = Number(game.dimension);
+          var board = replay(N, game.moves);
+          last_move_length = game.moves.length;
+          next_color = game.next;
+          boards.push({ row: -1, col: -1, board: board });
+          if (game.moves.length > last_move_length) {
+            // handle new moves
+            let opponent_piece = "white";
+            const N = Number(game.dimension);
+            while (last_move_length < game.moves.length) {
+              play_put_sound();
+              const idx = game.moves[last_move_length];
+              const i = Math.floor(idx / N);
+              const j = idx % N;
+              var board = Array.from(boards[boards.length - 1].board);
+              set_and_flip(N, board, opponent_piece, i, j);
+              boards.push({ row: i, col: j, board: board });
+              last_move_length += 1;
+            }
+            let matched = game.board == board.join("");
+            if (!matched) {
+              console.log("CRITICAL ERROR!!!");
+              console.log("Game  board: " + game.board);
+              console.log("Local board: " + board.join(""));
+            }
+            m.redraw();
+          } else if (game.result.length > 0) {
+            // handle end of game
+            m.redraw();
+          } else if (
+            game.moves.length == last_move_length &&
+            !same_color(next_color, game.next)
+          ) {
+            // redraw when next player has changed
+            next_color = game.next;
+            m.redraw();
+          } else if (
+            !black_name.equalIgnoreCase(get_player_name(game.black)) ||
+            !white_name.equalIgnoreCase(get_player_name(game.white))
+          ) {
+            if (
+              get_player_name(game.white) == "" ||
+              get_player_name(game.black) == ""
+            ) {
+              // player left, we'll terminate
+              set_error("GameCancelled");
+              return;
+            } else {
+              // reset game when player name has changed
+              const N = Number(game.dimension);
+              var board = replay(N, game.moves);
+              boards = [{ row: -1, col: -1, board: board }];
+              m.redraw();
+            }
+          }
+          m.redraw();
+          refreshTimeout = setTimeout(function(){ refresh(player, against)}, 15000);
+        }
+      })
+      .catch(function (err) {
+        console.log("View error, will try again.");
+        console.log(err);
+        //refresh();
+      });
+  };
+
+  
+  
+  return {
+    oninit: start_loading,
+    onremove: function (vnode) {
+      clearTimeout(refreshTimeout);
+    },
+    view: function (vnode) {
+      var content;
+      if (game === null) {
+        start_loading();
+        clearTimeout(refreshTimeout);
+        load_put_sound(reversi_assets);
+        refresh(vnode.attrs.player, vnode.attrs.against);
+        player_color = "white";
+        content = m("div");
+      } else {
+        content = Board(
+          expiring ? "Game will expire if no one moves!" : "",
+          next_color,
+          next_color,
+          game,
+          boards,
+          function (){},
+          function (e) {
+            start_loading();
+            m.route.set("/play");
+          }
+        );
+        stop_loading();
+      }
+      return m("div", content);
+    },
+  };
+}
+
 function make_player_list(players, ordered) {
   let half = players.slice(0, 4);
   let more = players.slice(4, 8);
@@ -678,4 +804,5 @@ function Play() {
 m.route(main, "/play", {
   "/play": Play,
   "/game/:player/:against": Game,
+  "/observe/:player/:against": Observe,
 });

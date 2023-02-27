@@ -1,0 +1,104 @@
+type StartError = 
+ variant {
+   InvalidOpponentName;
+   NoSelfGame;
+   OpponentInAnotherGame;
+   PlayerNotFound;
+ };
+type Score = nat;
+type Result_1 = 
+ variant {
+   err: RegistrationError;
+   ok: PlayerView__1;
+ };
+type Result = 
+ variant {
+   err: StartError;
+   ok: GameView;
+ };
+type RegistrationError = 
+ variant {
+   InvalidName;
+   NameAlreadyExists;
+ };
+type PlayerView__1 = 
+ record {
+   name: PlayerName;
+   score: Score;
+ };
+type PlayerView = 
+ record {
+   name: PlayerName;
+   score: Score;
+ };
+type PlayerName = text;
+type PlayerId = principal;
+type MoveResult = 
+ variant {
+   GameNotFound;
+   GameNotStarted;
+   GameOver: ColorCount;
+   IllegalColor;
+   IllegalMove;
+   InvalidColor;
+   InvalidCoordinate;
+   OK;
+   Pass;
+ };
+type ListResult = 
+ record {
+   available: vec PlayerView;
+   games: vec GameView__1;
+   player: opt PlayerView;
+   recent: vec PlayerView;
+   top: vec PlayerView;
+ };
+type GameView__1 = 
+ record {
+   black: GamePlayer;
+   board: text;
+   dimension: nat;
+   expiring: bool;
+   moves: vec nat8;
+   next: Color;
+   result: opt ColorCount;
+   white: GamePlayer;
+ };
+type GameView = 
+ record {
+   black: GamePlayer;
+   board: text;
+   dimension: nat;
+   expiring: bool;
+   moves: vec nat8;
+   next: Color;
+   result: opt ColorCount;
+   white: GamePlayer;
+ };
+type GamePlayer = 
+ variant {
+   Player: record {
+             PlayerId;
+             PlayerView;
+           };
+   PlayerName: PlayerName;
+ };
+type ColorCount = 
+ record {
+   black: nat;
+   white: nat;
+ };
+type Color = 
+ variant {
+   black;
+   white;
+ };
+service : {
+  list: () -> (ListResult) query;
+  move: (int, int) -> (MoveResult);
+  register: (text) -> (Result_1);
+  start: (text) -> (Result);
+  view: () -> (opt GameView) query;
+  view_game: (text, text) -> (opt GameView) query;
+  view_possible: (Color, principal, principal) -> (text) query;
+}

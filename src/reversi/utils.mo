@@ -8,14 +8,15 @@ import Prim "mo:prim";
 import Types "./types";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
+import StableBuffer "mo:StableBuffer/StableBuffer";
 
 import Game "./game";
 
 module {
 
 // Game with no movement will expire.
-public let game_expired_nanosecs = 600000000000; // 10 minutes
-public let game_expiring_nanosecs = 540000000000; // 9 minutes
+public let game_expired_nanosecs = 180000000000000; // 2days
+public let game_expiring_nanosecs = 162000000000000; // 
 
 public type Iter<T> = Iter.Iter<T>;
 public type GameState = Types.GameState;
@@ -75,9 +76,9 @@ public func reset_game(game: GameState) {
     let blacks : [(Nat,Nat)] = [ (M - 1, M), (M, M - 1) ];
     let whites : [(Nat,Nat)] = [ (M - 1, M - 1), (M, M) ];
     Game.init_board(N, game.board, blacks, whites);
-    game.moves.clear();
+    StableBuffer.clear(game.moves);
     let add_move = func ((row: Nat, col: Nat)) {
-      game.moves.add(Nat8.fromNat(row * N + col))
+      StableBuffer.add(game.moves,Nat8.fromNat(row * N + col))
     };
     add_move(whites[0]);
     add_move(blacks[0]);
