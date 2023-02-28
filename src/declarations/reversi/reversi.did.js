@@ -65,6 +65,11 @@ export const idlFactory = ({ IDL }) => {
   const Result = IDL.Variant({ 'ok' : GameView, 'err' : StartError });
   return IDL.Service({
     'list' : IDL.Func([], [ListResult], ['query']),
+    'list_games' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
+        ['query'],
+      ),
     'move' : IDL.Func([IDL.Int, IDL.Int], [MoveResult], []),
     'register' : IDL.Func([IDL.Text], [Result_1], []),
     'start' : IDL.Func([IDL.Text], [Result], []),

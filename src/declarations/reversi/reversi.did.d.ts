@@ -59,6 +59,7 @@ export type StartError = { 'NoSelfGame' : null } |
   { 'OpponentInAnotherGame' : null };
 export interface _SERVICE {
   'list' : ActorMethod<[], ListResult>,
+  'list_games' : ActorMethod<[], Array<[string, string]>>,
   'move' : ActorMethod<[bigint, bigint], MoveResult>,
   'register' : ActorMethod<[string], Result_1>,
   'start' : ActorMethod<[string], Result>,

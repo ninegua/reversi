@@ -435,6 +435,30 @@ actor {
     }
   };
 
+  public shared query (msg) func list_games(): async [(Text, Text)] {
+
+    let results = Buffer.Buffer<(Text, Text)>(1);
+    for(thisItem in StableBuffer.toArray(games).vals()){
+      if(thisItem.result == null){
+        results.add((thisItem.black.1, thisItem.white.1));
+      };
+    };
+
+    return results.toArray();
+  };
+
+  public shared query (msg) func list_players(): async [(Text, [Principal])] {
+
+    let results = Buffer.Buffer<(Text, [Principal])>(1);
+    for(thisItem in Map.entries(players.name_map)){
+      
+        results.add((thisItem.0, thisItem.1.ids));
+      
+    };
+
+    return results.toArray();
+  };
+
   // External interface to view the state of an on-going game.
   public shared query (msg) func view() : async ?GameView {
       let player_id = msg.caller;
@@ -475,10 +499,10 @@ actor {
 
   // External interface that places a piece of given color at a coordinate.
   // It returns "OK" when the move is valid.
-  public shared(msg) func move(row_: Int, col_: Int) : async Types.MoveResult {
+  public shared(msg) func move(move: {rowPos: Nat; colPos: Nat}) : async Types.MoveResult {
     // The casting is necessary because dfx has yet to support Nat on commandline
-    let row : Nat = Int.abs(row_);
-    let col : Nat = Int.abs(col_);
+    let row : Nat = Int.abs(move.rowPos);
+    let col : Nat = Int.abs(move.colPos);
     let player_id = msg.caller;
     switch (lookup_game_by_id(player_id)) {
       case null { #GameNotFound };

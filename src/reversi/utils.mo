@@ -49,7 +49,7 @@ public func eq_nocase(s: Text, t: Text) : Bool {
 // 2. Alphanumerical. Special characters like  '_' and '-' are also allowed.
 public func valid_name(name: Text): Bool {
   let str : [Char] = Iter.toArray(Text.toIter(name));
-  if (str.size() < 3 or str.size() > 10) {
+  if (str.size() < 3 or str.size() > 16) {
     return false;
   };
   for (i in Iter.range(0, str.size() - 1)) {

@@ -1,4 +1,24 @@
 // Version: 1.0.0
+type Board = [var ?Color];
+type Color = {#black; #white};
+type ColorCount = {black : Nat; white : Nat};
+type Entry<K, V> = (?K, ?V, Nat, Nat);
+type GameState =
+  {
+    var black : (?PlayerId, PlayerName);
+    board : Board;
+    dimension : Nat;
+    var last_updated : Time;
+    moves : Moves;
+    var next : Color;
+    var result : ?ColorCount;
+    var white : (?PlayerId, PlayerName)
+  };
+type GameState__2 = GameState;
+type IdMap = Map<PlayerId, PlayerName>;
+type Map<K, V> = {var body : ([var Nat], [var Entry<K, V>], Nat, Nat, Nat)};
+type Moves = StableBuffer<Nat8>;
+type NameMap = Map<PlayerName, PlayerStateV2>;
 type PlayerId = Principal;
 type PlayerId__2 = PlayerId;
 type PlayerName = Text;
@@ -7,7 +27,13 @@ type PlayerStateV1__1 = PlayerStateV1;
 type PlayerStateV2 = {ids : [PlayerId]; name : PlayerName; var score : Score};
 type PlayerState__1 = PlayerStateV2;
 type Score = Nat;
+type StableBuffer<X> =
+  {var count : Nat; var elems : [var X]; initCapacity : Nat};
+type Time = Int;
 actor {
   stable var accounts : [(PlayerId__2, PlayerStateV1__1)];
-  stable var accounts_v2 : [PlayerState__1]
+  stable var accounts_v2 : [PlayerState__1];
+  stable var games :
+    {var count : Nat; var elems : [var GameState__2]; initCapacity : Nat};
+  stable var players : {id_map : IdMap; name_map : NameMap}
 };

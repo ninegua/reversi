@@ -295,7 +295,11 @@ function Game() {
           }
         );
       }
-      return m("div", content);
+      return m("div", content, m(
+        "a",
+        { href: "https://icdevs.org/donations.html" },
+        "Consider donating to ICDevs.org"
+      ));
     },
   };
 }
@@ -304,19 +308,28 @@ function Game() {
 function Observe() {
   var game = null;
   var boards = [];
+
+  var game_list = null;
   var last_move_length = null;
   var player_color = null;
   var next_color = null;
   var expiring = null;
+  var requested_teams = null;
   var refresh = function (player, against) {
     clearTimeout(refreshTimeout);
+    game_list=null;
     reversi
       .view_game(player, against)
       .then(function (res) {
         // console.log("refresh view");
         // console.log(res);
         if (res.length == 0) {
-          set_error("GameCancelled");
+          reversi
+            .list_games()
+            .then(function (game_list_result){
+              game_list = game_list_result;
+              m.redraw();
+            });
           
         } else {
           
@@ -399,29 +412,51 @@ function Observe() {
     },
     view: function (vnode) {
       var content;
-      if (game === null) {
+      if((requested_teams != null) && (vnode.attrs.player != requested_teams[0] ||  vnode.attrs.against != requested_teams[1])){
+        game_list = null;
+      };
+
+      requested_teams = [vnode.attrs.player, vnode.attrs.against];
+
+      if (game === null && game_list === null) {
         start_loading();
         clearTimeout(refreshTimeout);
         load_put_sound(reversi_assets);
         refresh(vnode.attrs.player, vnode.attrs.against);
         player_color = "white";
         content = m("div");
-      } else {
-        content = Board(
-          expiring ? "Game will expire if no one moves!" : "",
-          next_color,
-          next_color,
-          game,
-          boards,
-          function (){},
-          function (e) {
-            start_loading();
-            m.route.set("/play");
-          }
-        );
-        stop_loading();
-      }
-      return m("div", content);
+      }else {
+      
+        if( game_list != null && game_list.length > 0){
+          let lis = [];
+          for (var i = 0; i < game_list.length; i++) {
+            lis.push(m("div", m("a", {href : "#!/observe/" + game_list[i][0] + "/" + game_list[i][1]}, game_list[i][0] + " vs. " + game_list[i][1])));
+          };
+          
+          content = [m("h2", "That game isn't running right now, but here are some that are"),m("div", lis), m("br")];
+          stop_loading();
+        }
+        else{
+          content = Board(
+            expiring ? "Game will expire if no one moves!" : "",
+            next_color,
+            next_color,
+            game,
+            boards,
+            function (){},
+            function (e) {
+              start_loading();
+              m.route.set("/play");
+            }
+          );
+          stop_loading();
+        }
+      };
+      return m("div", content, m(
+        "a",
+        { href: "https://icdevs.org/donations.html" },
+        "Consider donating to ICDevs.org"
+      ));
     },
   };
 }
@@ -786,7 +821,13 @@ function Play() {
             m("div.error", get_error_message()),
             m("div", m("form", { onsubmit: play }, form)),
           ]),
-          m("div.bottom-centered", m("div.tips", tips_on ? m(tips) : null)),
+          m("div.bottom-centered", 
+            m("div.tips", tips_on ? m(tips) : null),
+            m(
+              "a",
+              { href: "https://icdevs.org/donations.html" },
+              "Consider donating to ICDevs.org"
+            )),
           m(
             "div.bottom",
             m(
@@ -795,6 +836,7 @@ function Play() {
               "Source Code"
             )
           ),
+          
         ];
       }
     },

@@ -95,6 +95,10 @@ type Color =
  };
 service : {
   list: () -> (ListResult) query;
+  list_games: () -> (vec record {
+                           text;
+                           text;
+                         }) query;
   move: (int, int) -> (MoveResult);
   register: (text) -> (Result_1);
   start: (text) -> (Result);
