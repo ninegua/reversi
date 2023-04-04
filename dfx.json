@@ -12,7 +12,7 @@
         "entrypoint": "src/reversi_assets/src/index.html"
       },
       "source": [
-        "src/reversi_assets/assets",
+        
         "dist/reversi_assets/"
       ],
       "type": "assets"
@@ -20,15 +20,9 @@
   },
   "defaults": {
     "build": {
-      "packtool": ""
+      "packtool": "vessel sources"
     }
   },
-  "dfx": "0.8.1",
-  "networks": {
-    "local": {
-      "bind": "0.0.0.0:8000",
-      "type": "ephemeral"
-    }
-  },
+  "dfx": "0.13.1",
   "version": 1
 }

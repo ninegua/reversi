@@ -1,5 +1,6 @@
-import Buffer "mo:base/Buffer";
-import HashMap "mo:base/HashMap";
+
+import Map "mo:map/Map";
+import StableBuffer "mo:StableBuffer/StableBuffer";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
@@ -45,8 +46,8 @@ public type PlayerView = {
   score: Score;
 };
 
-public type IdMap = HashMap.HashMap<PlayerId, PlayerName>;
-public type NameMap = HashMap.HashMap<PlayerName, PlayerStateV2>;
+public type IdMap = Map.Map<PlayerId, PlayerName>;
+public type NameMap = Map.Map<PlayerName, PlayerStateV2>;
 
 public type Players = {
   id_map: IdMap;
@@ -67,7 +68,7 @@ public type RegistrationError = {
 };
 
 // History of valid moves. The use of Nat8 here implies the max dimension is 8.
-public type Moves = Buffer.Buffer<Nat8>;
+public type Moves = StableBuffer.StableBuffer<Nat8>;
 
 public type GameState = {
   dimension: Nat;
@@ -96,7 +97,7 @@ public type GameView = {
   expiring: Bool;
 };
 
-public type Games = Buffer.Buffer<GameState>;
+public type Games = StableBuffer.StableBuffer<GameState>;
 
 public type StartError = {
   #InvalidOpponentName;

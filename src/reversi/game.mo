@@ -112,7 +112,7 @@ module {
 
   // Return true if a valid move is possible for color at the given position (i, j).
   // The precondition is that (i, j) is empty.
-  func valid_move(N: Nat, board: Board, color: Color, i: Nat, j: Nat) : Bool {
+  public func valid_move(N: Nat, board: Board, color: Color, i: Nat, j: Nat) : Bool {
       for (p in [-1, 0, 1].vals()) {
         for (q in [-1, 0, 1].vals()) {
           if (not(p == 0 and q == 0)) {
@@ -128,7 +128,7 @@ module {
 
   // Calculate all validate positions for a given color by returning
   // a board that has the cells colored.
-  func valid_moves(N: Nat, board: Board, color: Color) : Board {
+  public func valid_moves(N: Nat, board: Board, color: Color) : Board {
       let next : Board = Array.init<?Color>(N * N, empty_piece);
       for (i in Iter.range(0, N-1)) {
         for (j in Iter.range(0, N-1)) {

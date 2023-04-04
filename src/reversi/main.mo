@@ -1,7 +1,6 @@
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
-import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Int "mo:base/Int";
 import Nat "mo:base/Nat";
@@ -12,6 +11,8 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
+import Map "mo:map/Map";
+import StableBuffer "mo:StableBuffer/StableBuffer";
 
 import Game "./game";
 import Types "./types";
@@ -40,6 +41,8 @@ actor {
   stable var accounts : [(PlayerId, PlayerStateV1)] = [];
   stable var accounts_v2 : [PlayerState] = [];
 
+  let gameSize = 8;
+
   func allAccounts() : [PlayerState] {
     Array.append(
       accounts_v2,
@@ -59,35 +62,16 @@ actor {
   system func preupgrade() {
     accounts := [];
     accounts_v2 := Iter.toArray(Iter.map(
-                  players.name_map.entries(), 
+                  Map.entries(players.name_map), 
                   func (x: (PlayerName, PlayerState)) : PlayerState { x.1 }
                 ));
   };
 
 
   // Player database is initiated from the stable accounts.
-  let players : Players = {
-    id_map : IdMap = Array.foldLeft(
-      allAccounts(),
-      HashMap.HashMap<PlayerId, PlayerName>(
-        allAccountsSize(), func (x, y) { x == y }, Principal.hash
-      ),
-      func(m: IdMap, state: PlayerState) : IdMap {
-        for (id in state.ids.vals()) {
-          m.put(id, state.name)
-        };
-        m
-      }
-    );
-    name_map : NameMap = HashMap.fromIter<PlayerName, PlayerState>(
-      Iter.map<PlayerState, (PlayerName, PlayerState)>(
-        allAccounts().vals(),
-        func(state: PlayerState): (PlayerName, PlayerState) {
-          (state.name, state)
-        }),
-      allAccountsSize(),
-      func (x, y) { x == y }, Text.hash
-    );
+  stable var players : Players = {
+    id_map : Types.IdMap = Map.new<PlayerId, PlayerName>();
+    name_map : NameMap = Map.new<PlayerName, Types.PlayerStateV2>();
   };
 
   let top_players : [var ?PlayerView] = Utils.init_top_players(allAccounts().vals());
@@ -95,11 +79,15 @@ actor {
   let available_players : [var PlayerName] = Array.init<PlayerName>(10, "");
 
   func lookup_player_by_id(id: PlayerId) : ?PlayerState {
-    Option.chain(players.id_map.get(id), players.name_map.get)
+    let name = switch(Map.get<PlayerId, PlayerName>(players.id_map, Map.phash, id)){
+      case(null) return null;
+      case(?val) val;
+    };
+    Map.get<PlayerName, Types.PlayerStateV2>(players.name_map, Map.thash, name)
   };
 
   func lookup_player_by_name(name: PlayerName) : ?PlayerState {
-    players.name_map.get(name)
+    Map.get<PlayerName, Types.PlayerStateV2>(players.name_map, Map.thash, name)
   };
 
   func game_state_to_view(game: GameState, ): GameView {
@@ -119,7 +107,7 @@ actor {
       black = to_gameplayer(game.black);
       white = to_gameplayer(game.white);
       board = Game.render_board(game.dimension, game.board);
-      moves = game.moves.toArray();
+      moves = StableBuffer.toArray(game.moves);
       dimension = game.dimension;
       next = game.next;
       result = game.result;
@@ -130,8 +118,8 @@ actor {
   func insert_new_player(id: PlayerId, name_: PlayerName) : PlayerState {
     let player_name = Utils.to_lowercase(name_);
     let player = { name = player_name; ids = [id]; var score = 0 };
-    players.name_map.put(player_name, player);
-    players.id_map.put(id, player_name);
+    ignore Map.put<PlayerName, Types.PlayerStateV2>(players.name_map, Map.thash, player_name, player);
+    ignore  Map.put<PlayerId, PlayerName>(players.id_map, Map.phash, id, player_name);
     player
   };
 
@@ -162,20 +150,28 @@ actor {
   };
 
   // Game database
-  let games : Games = Buffer.Buffer<GameState>(0);
+  stable var games  = StableBuffer.init<GameState>();
 
   func lookup_game_by_id(player_id: PlayerId): ?GameState {
-    for (i in Iter.range(0, games.size()-1)) {
-      let game = games.get(i);
+    for (i in Iter.range(0, StableBuffer.size(games)-1)) {
+      let game = StableBuffer.get(games,i);
       if (game.black.0 == ?player_id) { return ?game };
       if (game.white.0 == ?player_id) { return ?game };
     };
     null
   };
 
+  func lookup_game_by_ids(player_id: PlayerId, player_id2: PlayerId): ?GameState {
+    for (i in Iter.range(0, StableBuffer.size(games)-1)) {
+      let game = StableBuffer.get(games,i);
+      if ((game.black.0 == ?player_id and game.white.0 == ?player_id2) or (game.black.0 == ?player_id2 and game.white.0 == ?player_id)) { return ?game };
+    };
+    null
+  };
+
   // Return all games that the given player might be playing.
   func lookup_games_by_name(player_name: PlayerName): [GameState] {
-    Array.filter(games.toArray(), func (game: GameState) : Bool {
+    Array.filter(StableBuffer.toArray(games), func (game: GameState) : Bool {
       let (black_id, black_name) = game.black;
       let (white_id, white_name) = game.white;
       Utils.eq_nocase(white_name, player_name) or Utils.eq_nocase(black_name, player_name)
@@ -183,8 +179,8 @@ actor {
   };
 
   func lookup_game_by_name(player_name: PlayerName): ?GameState {
-    for (i in Iter.range(0, games.size()-1)) {
-      let game = games.get(i);
+    for (i in Iter.range(0, StableBuffer.size(games)-1)) {
+      let game = StableBuffer.get(games, i);
       let (black_id, black_name) = game.black;
       let (white_id, white_name) = game.white;
       if ((Utils.eq_nocase(white_name, player_name) and Option.isSome(white_id)) or
@@ -197,15 +193,15 @@ actor {
 
   // Delete a game from the existing games.
   func delete_game(game: GameState) {
-    var n = games.size();
+    var n = StableBuffer.size(games);
     var i = 0;
     while (i < n) {
-      if (Utils.same_game(game, games.get(i))) {
-        for (j in Iter.range(i + 1, games.size()-1)) {
-          let game = games.get(j);
-          games.put(j-1, game);
+      if (Utils.same_game(game, StableBuffer.get(games, i))) {
+        for (j in Iter.range(i + 1, StableBuffer.size(games)-1)) {
+          let game = StableBuffer.get(games, j);
+          StableBuffer.put(games, j-1, game);
         };
-        let _ = games.removeLast();
+        let _ = StableBuffer.removeLast(games);
         n := n - 1
       } else {
         i := i + 1
@@ -215,15 +211,15 @@ actor {
 
   // Purge expired games has no movement for 10 minutes.
   func purge_expired_games() {
-    var n = games.size();
+    var n = StableBuffer.size(games);
     var i = 0;
     let now = Time.now();
     while (i < n) {
-      let game = games.get(i);
+      let game = StableBuffer.get(games, i);
       if (game.last_updated + Utils.game_expired_nanosecs < now) {
-        switch (games.removeLast()) {
+        switch (StableBuffer.removeLast(games)) {
           case null ();
-          case (?game) games.put(i, game);
+          case (?game) StableBuffer.put(games, i, game);
         };
         n := n - 1
       } else {
@@ -352,11 +348,11 @@ actor {
   // Create a new game, and add to the list of games.
   func add_game(black_id: PlayerId, black_name: Text, white_name: Text) : GameState {
     // default dimension is 6 for now
-    let N = 6;
+    
     let game = {
-      dimension = N;
-      board = Array.init<?Game.Color>(N * N, Game.empty_piece);
-      moves = Buffer.Buffer<Nat8>(N * N);
+      dimension = gameSize;
+      board = Array.init<?Game.Color>(gameSize * gameSize, Game.empty_piece);
+      moves = StableBuffer.initPresized<Nat8>(gameSize * gameSize);
       var black : (?PlayerId, PlayerName) = (?black_id, black_name);
       var white : (?PlayerId, PlayerName) = (null, white_name);
       var next : Game.Color = #white;
@@ -364,7 +360,7 @@ actor {
       var last_updated = Time.now();
     };
     Utils.reset_game(game);
-    games.add(game);
+    StableBuffer.add<GameState>(games, game);
     game
   };
 
@@ -439,18 +435,74 @@ actor {
     }
   };
 
+  public shared query (msg) func list_games(): async [(Text, Text)] {
+
+    let results = Buffer.Buffer<(Text, Text)>(1);
+    for(thisItem in StableBuffer.toArray(games).vals()){
+      if(thisItem.result == null){
+        results.add((thisItem.black.1, thisItem.white.1));
+      };
+    };
+
+    return results.toArray();
+  };
+
+  public shared query (msg) func list_players(): async [(Text, [Principal])] {
+
+    let results = Buffer.Buffer<(Text, [Principal])>(1);
+    for(thisItem in Map.entries(players.name_map)){
+      
+        results.add((thisItem.0, thisItem.1.ids));
+      
+    };
+
+    return results.toArray();
+  };
+
   // External interface to view the state of an on-going game.
   public shared query (msg) func view() : async ?GameView {
       let player_id = msg.caller;
       Option.map(lookup_game_by_id(player_id), game_state_to_view)
   };
 
+  // External interface to view the state of an on-going game.
+  public shared query (msg) func view_game(player_name1 : Text, player_Name2: Text) : async ?GameView {
+      Debug.print("view_game" # debug_show(player_name1, player_Name2));
+      let player_id1 = switch(Map.get<PlayerName, Types.PlayerStateV2>(players.name_map, Map.thash, player_name1)){
+        case(null) return null;
+        case(?val) val;
+      };
+      let player_id2 = switch(Map.get<PlayerName, Types.PlayerStateV2>(players.name_map, Map.thash, player_Name2)){
+        case(null) return null;
+        case(?val) val
+      };
+
+      Debug.print("view_game" # debug_show(player_id1, player_id2));
+
+      Option.map(lookup_game_by_ids(player_id1.ids[0], player_id2.ids[0]), game_state_to_view)
+  };
+
+  // External interface to view the state of an on-going game.
+  public shared query (msg) func view_possible(color : Game.Color, player_id1 : Principal, player_id2: Principal) : async Text {
+      let player_id = msg.caller;
+
+      let gameState = switch(lookup_game_by_ids(player_id1, player_id2)){
+        case(null){
+          return "";
+        };
+        case(?val) val;
+      };
+
+      let aGameBoard = Game.valid_moves(gameSize, gameState.board, color);
+      return Game.render_board(gameSize, aGameBoard);
+  };
+
   // External interface that places a piece of given color at a coordinate.
   // It returns "OK" when the move is valid.
-  public shared(msg) func move(row_: Int, col_: Int) : async Types.MoveResult {
+  public shared(msg) func move(move: {rowPos: Nat; colPos: Nat}) : async Types.MoveResult {
     // The casting is necessary because dfx has yet to support Nat on commandline
-    let row : Nat = Int.abs(row_);
-    let col : Nat = Int.abs(col_);
+    let row : Nat = Int.abs(move.rowPos);
+    let col : Nat = Int.abs(move.colPos);
     let player_id = msg.caller;
     switch (lookup_game_by_id(player_id)) {
       case null { #GameNotFound };
@@ -470,17 +522,17 @@ actor {
                 #IllegalMove
               };
               case (#OK) {
-                game.moves.add(Nat8.fromNat(row * game.dimension + col));
+                StableBuffer.add(game.moves, Nat8.fromNat(row * game.dimension + col));
                 game.next := Game.opponent(color);
                 game.last_updated := Time.now();
                 #OK
               };
               case (#Pass) {
-                game.moves.add(Nat8.fromNat(row * game.dimension + col));
+                StableBuffer.add(game.moves, Nat8.fromNat(row * game.dimension + col));
                 #Pass
               };
               case (#GameOver(result)) {
-                game.moves.add(Nat8.fromNat(row * game.dimension + col));
+                StableBuffer.add(game.moves, Nat8.fromNat(row * game.dimension + col));
                 game.result := ?result;
                 game.last_updated := Time.now();
                 update_score(game.dimension, game.black.0, game.white.0, result);
